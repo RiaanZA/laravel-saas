@@ -1,0 +1,58 @@
+{
+    "name": "riaan-za/laravel-subscription-management",
+    "description": "A comprehensive Laravel package for SaaS subscription management with Vue 3, Inertia.js, and Peach Payments integration",
+    "type": "library",
+    "license": "MIT",
+    "keywords": [
+        "laravel",
+        "subscription",
+        "saas",
+        "peach-payments",
+        "vue3",
+        "inertia",
+        "tailwind"
+    ],
+    "authors": [
+        {
+            "name": "Riaan ZA",
+            "email": "loophole1@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^8.1",
+        "laravel/framework": "^11.0",
+        "laravel/sanctum": "^4.0",
+        "inertiajs/inertia-laravel": "^1.0",
+        "riaan-za/peachpayments-laravel-subscriptions": "dev-master"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^9.0",
+        "phpunit/phpunit": "^10.0",
+        "mockery/mockery": "^1.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "RiaanZA\\LaravelSubscription\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "RiaanZA\\LaravelSubscription\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "RiaanZA\\LaravelSubscription\\LaravelSubscriptionServiceProvider"
+            ]
+        }
+    },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/RiaanZA/peachpayments-laravel-subscriptions"
+        }
+    ],
+    "minimum-stability": "dev",
+    "prefer-stable": true
+}
