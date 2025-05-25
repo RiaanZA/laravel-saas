@@ -24,6 +24,10 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
         $this->app->singleton('laravel-subscription', function ($app) {
             return new LaravelSubscriptionManager($app);
         });
+
+        // Bind services
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\PaymentService::class);
     }
 
     /**
@@ -59,6 +63,7 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
 
         // Register middleware
         $this->app['router']->aliasMiddleware('subscription', SubscriptionMiddleware::class);
+        $this->app['router']->aliasMiddleware('usage-limit', \RiaanZA\LaravelSubscription\Http\Middleware\UsageLimitMiddleware::class);
 
         // Register commands
         if ($this->app->runningInConsole()) {
