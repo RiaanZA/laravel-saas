@@ -28,6 +28,13 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
         // Bind services
         $this->app->bind(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class);
         $this->app->bind(\RiaanZA\LaravelSubscription\Services\PaymentService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\UsageService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+
+        // Configure service dependencies
+        $this->app->afterResolving(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class, function ($subscriptionService, $app) {
+            $subscriptionService->setUsageService($app->make(\RiaanZA\LaravelSubscription\Services\UsageService::class));
+        });
     }
 
     /**

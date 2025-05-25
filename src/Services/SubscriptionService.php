@@ -5,11 +5,21 @@ namespace RiaanZA\LaravelSubscription\Services;
 use RiaanZA\LaravelSubscription\Models\SubscriptionPlan;
 use RiaanZA\LaravelSubscription\Models\UserSubscription;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
 use Exception;
 
 class SubscriptionService
 {
+    protected ?UsageService $usageService = null;
+
+    /**
+     * Set the usage service (to avoid circular dependency).
+     */
+    public function setUsageService(UsageService $usageService): void
+    {
+        $this->usageService = $usageService;
+    }
     /**
      * Create a new subscription for a user.
      */
@@ -169,17 +179,29 @@ class SubscriptionService
      */
     protected function initializeUsageTracking(UserSubscription $subscription): void
     {
-        foreach ($subscription->plan->features as $feature) {
-            if ($feature->feature_type === 'numeric') {
-                $subscription->usage()->updateOrCreate([
-                    'feature_key' => $feature->feature_key,
-                    'period_start' => $subscription->current_period_start,
-                    'period_end' => $subscription->current_period_end,
-                ], [
-                    'usage_count' => 0,
-                ]);
+        if ($this->usageService) {
+            $this->usageService->initializeNewPeriod($subscription);
+        } else {
+            // Fallback to direct implementation
+            foreach ($subscription->plan->features as $feature) {
+                if ($feature->feature_type === 'numeric') {
+                    $subscription->usage()->updateOrCreate([
+                        'feature_key' => $feature->feature_key,
+                        'period_start' => $subscription->current_period_start,
+                        'period_end' => $subscription->current_period_end,
+                    ], [
+                        'usage_count' => 0,
+                    ]);
+                }
             }
         }
+
+        Log::info('Usage tracking initialized for subscription', [
+            'subscription_id' => $subscription->id,
+            'plan_id' => $subscription->plan_id,
+            'period_start' => $subscription->current_period_start->toDateString(),
+            'period_end' => $subscription->current_period_end->toDateString(),
+        ]);
     }
 
     /**
@@ -187,15 +209,26 @@ class SubscriptionService
      */
     protected function resetUsageForNewPeriod(UserSubscription $subscription): void
     {
-        foreach ($subscription->plan->features as $feature) {
-            if ($feature->feature_type === 'numeric') {
-                $subscription->usage()->create([
-                    'feature_key' => $feature->feature_key,
-                    'period_start' => $subscription->current_period_start,
-                    'period_end' => $subscription->current_period_end,
-                    'usage_count' => 0,
-                ]);
+        if ($this->usageService) {
+            $this->usageService->initializeNewPeriod($subscription);
+        } else {
+            // Fallback to direct implementation
+            foreach ($subscription->plan->features as $feature) {
+                if ($feature->feature_type === 'numeric') {
+                    $subscription->usage()->create([
+                        'feature_key' => $feature->feature_key,
+                        'period_start' => $subscription->current_period_start,
+                        'period_end' => $subscription->current_period_end,
+                        'usage_count' => 0,
+                    ]);
+                }
             }
         }
+
+        Log::info('Usage tracking reset for new billing period', [
+            'subscription_id' => $subscription->id,
+            'period_start' => $subscription->current_period_start->toDateString(),
+            'period_end' => $subscription->current_period_end->toDateString(),
+        ]);
     }
 }

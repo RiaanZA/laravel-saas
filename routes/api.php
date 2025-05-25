@@ -4,6 +4,7 @@ use Illuminate\Support\Facades\Route;
 use RiaanZA\LaravelSubscription\Http\Controllers\SubscriptionPlanController;
 use RiaanZA\LaravelSubscription\Http\Controllers\SubscriptionController;
 use RiaanZA\LaravelSubscription\Http\Controllers\PaymentController;
+use RiaanZA\LaravelSubscription\Http\Controllers\UsageController;
 
 /*
 |--------------------------------------------------------------------------
@@ -33,6 +34,13 @@ Route::prefix($prefix)->middleware($middleware)->group(function () {
 
     // Usage Tracking API
     Route::get('/usage', [SubscriptionController::class, 'usage']);
+    Route::get('/usage/detailed', [UsageController::class, 'index']);
+    Route::get('/usage/{featureKey}', [UsageController::class, 'show']);
+    Route::post('/usage/increment', [UsageController::class, 'increment']);
+    Route::post('/usage/decrement', [UsageController::class, 'decrement']);
+    Route::post('/usage/reset', [UsageController::class, 'reset']);
+    Route::get('/usage/alerts', [UsageController::class, 'alerts']);
+    Route::get('/usage/statistics', [UsageController::class, 'statistics']);
 
     // Payment API
     Route::post('/payment/process', [PaymentController::class, 'process']);

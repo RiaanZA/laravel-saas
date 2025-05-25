@@ -66,39 +66,45 @@ trait HasSubscriptions
      */
     public function canUseFeature(string $featureKey, int $increment = 1): bool
     {
-        $subscription = $this->activeSubscription();
-        
-        if (!$subscription || !$subscription->hasFeature($featureKey)) {
-            return false;
-        }
+        try {
+            $featureService = app(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+            return $featureService->canUseFeature($this, $featureKey, $increment);
+        } catch (\Exception $e) {
+            // Fallback to basic implementation
+            $subscription = $this->activeSubscription();
 
-        $feature = $subscription->plan->features()
-            ->where('feature_key', $featureKey)
-            ->first();
+            if (!$subscription || !$subscription->hasFeature($featureKey)) {
+                return false;
+            }
 
-        if (!$feature) {
-            return false;
-        }
+            $feature = $subscription->plan->features()
+                ->where('feature_key', $featureKey)
+                ->first();
 
-        // Unlimited features are always available
-        if ($feature->is_unlimited) {
+            if (!$feature) {
+                return false;
+            }
+
+            // Unlimited features are always available
+            if ($feature->is_unlimited) {
+                return true;
+            }
+
+            // For boolean features, just check if enabled
+            if ($feature->feature_type === 'boolean') {
+                return (bool) $feature->feature_limit;
+            }
+
+            // For numeric features, check usage limits
+            if ($feature->feature_type === 'numeric') {
+                $currentUsage = $subscription->getCurrentUsage($featureKey);
+                $limit = $feature->typed_limit;
+
+                return ($currentUsage + $increment) <= $limit;
+            }
+
             return true;
         }
-
-        // For boolean features, just check if enabled
-        if ($feature->feature_type === 'boolean') {
-            return (bool) $feature->feature_limit;
-        }
-
-        // For numeric features, check usage limits
-        if ($feature->feature_type === 'numeric') {
-            $currentUsage = $subscription->getCurrentUsage($featureKey);
-            $limit = $feature->typed_limit;
-            
-            return ($currentUsage + $increment) <= $limit;
-        }
-
-        return true;
     }
 
     /**
@@ -134,7 +140,7 @@ trait HasSubscriptions
     public function getSubscriptionStatus(): array
     {
         $subscription = $this->activeSubscription();
-        
+
         if (!$subscription) {
             return [
                 'has_subscription' => false,
@@ -156,5 +162,71 @@ trait HasSubscriptions
             'next_billing_date' => $subscription->next_billing_date->toDateString(),
             'formatted_amount' => $subscription->formatted_amount,
         ];
+    }
+
+    /**
+     * Increment usage for a feature.
+     */
+    public function incrementFeatureUsage(string $featureKey, int $increment = 1): bool
+    {
+        try {
+            $usageService = app(\RiaanZA\LaravelSubscription\Services\UsageService::class);
+            return $usageService->incrementUsage($this, $featureKey, $increment);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Decrement usage for a feature.
+     */
+    public function decrementFeatureUsage(string $featureKey, int $decrement = 1): bool
+    {
+        try {
+            $usageService = app(\RiaanZA\LaravelSubscription\Services\UsageService::class);
+            return $usageService->decrementUsage($this, $featureKey, $decrement);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get feature usage summary.
+     */
+    public function getFeatureUsageSummary(): array
+    {
+        try {
+            $featureService = app(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+            return $featureService->getFeatureUsageSummary($this);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Check if any features are over their limits.
+     */
+    public function hasOverLimitFeatures(): bool
+    {
+        try {
+            $featureService = app(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+            $overLimitFeatures = $featureService->getOverLimitFeatures($this);
+            return !empty($overLimitFeatures);
+        } catch (\Exception $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Get features that are over their limits.
+     */
+    public function getOverLimitFeatures(): array
+    {
+        try {
+            $featureService = app(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+            return $featureService->getOverLimitFeatures($this);
+        } catch (\Exception $e) {
+            return [];
+        }
     }
 }
