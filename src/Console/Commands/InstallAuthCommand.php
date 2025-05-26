@@ -11,7 +11,7 @@ class InstallAuthCommand extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'subscription:install-auth 
+    protected $signature = 'subscription:install-auth
                             {--force : Overwrite existing files}';
 
     /**
@@ -40,6 +40,9 @@ class InstallAuthCommand extends Command
     {
         $this->info('Installing Laravel Subscription Authentication...');
 
+        // Setup Inertia.js infrastructure
+        $this->setupInertiaInfrastructure();
+
         // Publish authentication assets
         $this->publishAuthAssets();
 
@@ -51,6 +54,12 @@ class InstallAuthCommand extends Command
 
         // Publish configuration if not exists
         $this->publishConfig();
+
+        // Create basic CSS file if needed
+        $this->createAppCss();
+
+        // Publish frontend configuration files
+        $this->publishFrontendConfig();
 
         $this->info('');
         $this->info('Authentication scaffolding installed successfully!');
@@ -123,7 +132,7 @@ const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.v
         return authPages[authPagePath]();
       }
     }
-    
+
     // Default page resolution
     return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
   },";
@@ -167,7 +176,7 @@ createInertiaApp({
         return authPages[authPagePath]();
       }
     }
-    
+
     // Default page resolution
     return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
   },
@@ -207,7 +216,7 @@ createInertiaApp({
 
         // Add use statement
         $useStatement = "use RiaanZA\\LaravelSubscription\\Traits\\HasSubscriptions;";
-        
+
         if (!Str::contains($content, $useStatement)) {
             $content = str_replace(
                 "use Illuminate\\Foundation\\Auth\\User as Authenticatable;",
@@ -248,6 +257,256 @@ createInertiaApp({
     }
 
     /**
+     * Setup Inertia.js infrastructure.
+     */
+    protected function setupInertiaInfrastructure(): void
+    {
+        $this->info('Setting up Inertia.js infrastructure...');
+
+        // Create app.blade.php layout
+        $this->createAppLayout();
+
+        // Create Inertia middleware if it doesn't exist
+        $this->createInertiaMiddleware();
+
+        // Update Kernel.php to include Inertia middleware
+        $this->updateKernel();
+
+        $this->info('✓ Inertia.js infrastructure setup complete');
+    }
+
+    /**
+     * Create the app.blade.php layout file.
+     */
+    protected function createAppLayout(): void
+    {
+        $layoutPath = resource_path('views/app.blade.php');
+
+        if (!$this->files->exists($layoutPath) || $this->option('force')) {
+            // Create views directory if it doesn't exist
+            if (!$this->files->isDirectory(resource_path('views'))) {
+                $this->files->makeDirectory(resource_path('views'), 0755, true);
+            }
+
+            $layoutContent = $this->getAppLayoutContent();
+            $this->files->put($layoutPath, $layoutContent);
+            $this->info('✓ Created app.blade.php layout');
+        } else {
+            $this->info('✓ app.blade.php layout already exists');
+        }
+    }
+
+    /**
+     * Get the content for app.blade.php layout.
+     */
+    protected function getAppLayoutContent(): string
+    {
+        return '<!DOCTYPE html>
+<html lang="{{ str_replace(\'_\', \'-\', app()->getLocale()) }}">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <title inertia>{{ config(\'app.name\', \'Laravel\') }}</title>
+
+        <!-- Fonts -->
+        <link rel="preconnect" href="https://fonts.bunny.net">
+        <link href="https://fonts.bunny.net/css?family=figtree:400,500,600&display=swap" rel="stylesheet" />
+
+        <!-- Scripts -->
+        @routes
+        @vite([\'resources/js/app.js\', "resources/js/Pages/{$page[\'component\']}.vue"])
+        @inertiaHead
+    </head>
+    <body class="font-sans antialiased">
+        @inertia
+    </body>
+</html>
+';
+    }
+
+    /**
+     * Create Inertia middleware if it doesn't exist.
+     */
+    protected function createInertiaMiddleware(): void
+    {
+        $middlewarePath = app_path('Http/Middleware/HandleInertiaRequests.php');
+
+        if (!$this->files->exists($middlewarePath) || $this->option('force')) {
+            // Create middleware directory if it doesn't exist
+            if (!$this->files->isDirectory(app_path('Http/Middleware'))) {
+                $this->files->makeDirectory(app_path('Http/Middleware'), 0755, true);
+            }
+
+            $middlewareContent = $this->getInertiaMiddlewareContent();
+            $this->files->put($middlewarePath, $middlewareContent);
+            $this->info('✓ Created HandleInertiaRequests middleware');
+        } else {
+            $this->info('✓ HandleInertiaRequests middleware already exists');
+        }
+    }
+
+    /**
+     * Get the content for HandleInertiaRequests middleware.
+     */
+    protected function getInertiaMiddlewareContent(): string
+    {
+        return '<?php
+
+namespace App\Http\Middleware;
+
+use Illuminate\Http\Request;
+use Inertia\Middleware;
+use Tighten\Ziggy\Ziggy;
+
+class HandleInertiaRequests extends Middleware
+{
+    /**
+     * The root template that is loaded on the first page visit.
+     *
+     * @var string
+     */
+    protected $rootView = \'app\';
+
+    /**
+     * Determine the current asset version.
+     */
+    public function version(Request $request): string|null
+    {
+        return parent::version($request);
+    }
+
+    /**
+     * Define the props that are shared by default.
+     *
+     * @return array<string, mixed>
+     */
+    public function share(Request $request): array
+    {
+        return [
+            ...parent::share($request),
+            \'auth\' => [
+                \'user\' => $request->user(),
+            ],
+            \'ziggy\' => fn () => [
+                ...(
+new Ziggy)->toArray(),
+                \'location\' => $request->url(),
+            ],
+        ];
+    }
+}
+';
+    }
+
+    /**
+     * Update Kernel.php to include Inertia middleware.
+     */
+    protected function updateKernel(): void
+    {
+        $kernelPath = app_path('Http/Kernel.php');
+
+        if (!$this->files->exists($kernelPath)) {
+            $this->warn('Kernel.php not found. Please manually add HandleInertiaRequests to your middleware.');
+            return;
+        }
+
+        $content = $this->files->get($kernelPath);
+
+        // Check if middleware is already registered
+        if (Str::contains($content, 'HandleInertiaRequests')) {
+            $this->info('✓ HandleInertiaRequests middleware already registered');
+            return;
+        }
+
+        // Add the middleware to the web group
+        $middlewareEntry = "            \App\Http\Middleware\HandleInertiaRequests::class,";
+
+        if (Str::contains($content, "'web' => [")) {
+            $content = str_replace(
+                "'web' => [",
+                "'web' => [\n" . $middlewareEntry,
+                $content
+            );
+
+            $this->files->put($kernelPath, $content);
+            $this->info('✓ Added HandleInertiaRequests to web middleware group');
+        } else {
+            $this->warn('Could not automatically add middleware. Please manually add HandleInertiaRequests to your web middleware group.');
+        }
+    }
+
+    /**
+     * Create basic app.css file if needed.
+     */
+    protected function createAppCss(): void
+    {
+        $cssPath = resource_path('css/app.css');
+
+        if (!$this->files->exists($cssPath) || $this->option('force')) {
+            // Create css directory if it doesn't exist
+            if (!$this->files->isDirectory(resource_path('css'))) {
+                $this->files->makeDirectory(resource_path('css'), 0755, true);
+            }
+
+            $cssContent = $this->getAppCssContent();
+            $this->files->put($cssPath, $cssContent);
+            $this->info('✓ Created app.css with Tailwind CSS');
+        } else {
+            $this->info('✓ app.css already exists');
+        }
+    }
+
+    /**
+     * Get the content for app.css.
+     */
+    protected function getAppCssContent(): string
+    {
+        return '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n';
+    }
+
+    /**
+     * Publish frontend configuration files.
+     */
+    protected function publishFrontendConfig(): void
+    {
+        $this->info('Publishing frontend configuration files...');
+
+        $stubsPath = __DIR__ . '/../../../stubs';
+
+        // Publish package.json if it doesn't exist
+        $this->publishStubFile($stubsPath . '/package.json', base_path('package.json'), 'package.json');
+
+        // Publish vite.config.js if it doesn't exist
+        $this->publishStubFile($stubsPath . '/vite.config.js', base_path('vite.config.js'), 'vite.config.js');
+
+        // Publish tailwind.config.js if it doesn't exist
+        $this->publishStubFile($stubsPath . '/tailwind.config.js', base_path('tailwind.config.js'), 'tailwind.config.js');
+
+        // Publish postcss.config.js if it doesn't exist
+        $this->publishStubFile($stubsPath . '/postcss.config.js', base_path('postcss.config.js'), 'postcss.config.js');
+
+        $this->info('✓ Frontend configuration files published');
+    }
+
+    /**
+     * Publish a stub file if it doesn't exist.
+     */
+    protected function publishStubFile(string $source, string $destination, string $name): void
+    {
+        if (!$this->files->exists($destination) || $this->option('force')) {
+            if ($this->files->exists($source)) {
+                $this->files->copy($source, $destination);
+                $this->info("✓ Published {$name}");
+            } else {
+                $this->warn("Stub file {$name} not found");
+            }
+        } else {
+            $this->info("✓ {$name} already exists");
+        }
+    }
+
+    /**
      * Copy a directory recursively.
      */
     protected function copyDirectory(string $source, string $destination): void
@@ -265,7 +524,7 @@ createInertiaApp({
         foreach ($files as $file) {
             $relativePath = $file->getRelativePathname();
             $destinationFile = $destination . '/' . $relativePath;
-            
+
             // Create directory if needed
             $destinationDir = dirname($destinationFile);
             if (!$this->files->isDirectory($destinationDir)) {
