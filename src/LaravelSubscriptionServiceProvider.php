@@ -6,7 +6,11 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use RiaanZA\LaravelSubscription\Console\Commands\InstallCommand;
 use RiaanZA\LaravelSubscription\Console\Commands\SeedPlansCommand;
+use RiaanZA\LaravelSubscription\Console\Commands\ListPlansCommand;
+use RiaanZA\LaravelSubscription\Console\Commands\CleanupCommand;
+use RiaanZA\LaravelSubscription\Console\Commands\StatsCommand;
 use RiaanZA\LaravelSubscription\Http\Middleware\SubscriptionMiddleware;
+use Illuminate\Support\Facades\Gate;
 
 class LaravelSubscriptionServiceProvider extends ServiceProvider
 {
@@ -23,6 +27,17 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
         // Register services
         $this->app->singleton('laravel-subscription', function ($app) {
             return new LaravelSubscriptionManager($app);
+        });
+
+        // Bind services
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\PaymentService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\UsageService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+
+        // Configure service dependencies
+        $this->app->afterResolving(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class, function ($subscriptionService, $app) {
+            $subscriptionService->setUsageService($app->make(\RiaanZA\LaravelSubscription\Services\UsageService::class));
         });
     }
 
@@ -59,13 +74,128 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
 
         // Register middleware
         $this->app['router']->aliasMiddleware('subscription', SubscriptionMiddleware::class);
+        $this->app['router']->aliasMiddleware('usage-limit', \RiaanZA\LaravelSubscription\Http\Middleware\UsageLimitMiddleware::class);
+
+        // Register policies
+        $this->registerPolicies();
 
         // Register commands
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
                 SeedPlansCommand::class,
+                ListPlansCommand::class,
+                CleanupCommand::class,
+                StatsCommand::class,
             ]);
         }
+    }
+
+    /**
+     * Register authorization policies.
+     */
+    protected function registerPolicies(): void
+    {
+        Gate::policy(
+            \RiaanZA\LaravelSubscription\Models\UserSubscription::class,
+            \RiaanZA\LaravelSubscription\Policies\SubscriptionPolicy::class
+        );
+
+        Gate::policy(
+            \RiaanZA\LaravelSubscription\Models\SubscriptionPlan::class,
+            \RiaanZA\LaravelSubscription\Policies\PlanPolicy::class
+        );
+
+        Gate::policy(
+            \RiaanZA\LaravelSubscription\Models\PlanFeature::class,
+            \RiaanZA\LaravelSubscription\Policies\FeaturePolicy::class
+        );
+
+        Gate::policy(
+            \RiaanZA\LaravelSubscription\Models\SubscriptionUsage::class,
+            \RiaanZA\LaravelSubscription\Policies\UsagePolicy::class
+        );
+
+        // Register feature-based gates
+        $this->registerFeatureGates();
+    }
+
+    /**
+     * Register feature-based authorization gates.
+     */
+    protected function registerFeatureGates(): void
+    {
+        // Dynamic feature gates based on configuration
+        $featureGates = config('laravel-subscription.authorization.feature_gates', []);
+
+        foreach ($featureGates as $feature => $allowedPlans) {
+            Gate::define("access-{$feature}", function ($user) use ($feature) {
+                if (!$user->hasActiveSubscription()) {
+                    return false;
+                }
+
+                $subscription = $user->activeSubscription();
+                $featureGates = config('laravel-subscription.authorization.feature_gates', []);
+
+                if (!isset($featureGates[$feature])) {
+                    return false;
+                }
+
+                return in_array($subscription->plan->slug, $featureGates[$feature]);
+            });
+        }
+
+        // Common subscription gates
+        Gate::define('has-active-subscription', function ($user) {
+            return $user->hasActiveSubscription();
+        });
+
+        Gate::define('on-trial', function ($user) {
+            return $user->onSubscriptionTrial();
+        });
+
+        Gate::define('subscription-ending-soon', function ($user) {
+            return $user->isSubscriptionEndingSoon();
+        });
+
+        Gate::define('has-premium-plan', function ($user) {
+            if (!$user->hasActiveSubscription()) {
+                return false;
+            }
+
+            $subscription = $user->activeSubscription();
+            $premiumPlans = config('laravel-subscription.authorization.premium_plans', []);
+
+            return in_array($subscription->plan->slug, $premiumPlans);
+        });
+
+        Gate::define('has-enterprise-plan', function ($user) {
+            if (!$user->hasActiveSubscription()) {
+                return false;
+            }
+
+            $subscription = $user->activeSubscription();
+            $enterprisePlans = config('laravel-subscription.authorization.enterprise_plans', []);
+
+            return in_array($subscription->plan->slug, $enterprisePlans);
+        });
+
+        Gate::define('can-use-feature', function ($user, $featureKey, $increment = 1) {
+            return $user->canUseFeature($featureKey, $increment);
+        });
+
+        Gate::define('is-subscription-admin', function ($user) {
+            $adminEmails = config('laravel-subscription.authorization.admin_emails', []);
+
+            if (method_exists($user, 'hasRole')) {
+                return $user->hasRole('admin') || $user->hasRole('super-admin');
+            }
+
+            if (property_exists($user, 'is_admin')) {
+                return $user->is_admin;
+            }
+
+            return in_array($user->email, $adminEmails);
+        });
     }
 }
