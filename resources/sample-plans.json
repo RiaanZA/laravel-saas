@@ -1,0 +1,211 @@
+{
+  "plans": [
+    {
+      "name": "Basic",
+      "slug": "basic",
+      "description": "Perfect for getting started",
+      "price": 5.99,
+      "billing_cycle": "monthly",
+      "trial_days": 7,
+      "is_popular": false,
+      "sort_order": 1,
+      "features": [
+        {
+          "feature_key": "max_projects",
+          "feature_name": "Maximum Projects",
+          "feature_type": "numeric",
+          "feature_limit": "3",
+          "is_unlimited": false,
+          "description": "Number of projects you can create",
+          "sort_order": 1
+        },
+        {
+          "feature_key": "storage_gb",
+          "feature_name": "Storage Space",
+          "feature_type": "numeric",
+          "feature_limit": "5",
+          "is_unlimited": false,
+          "description": "Storage space in GB",
+          "sort_order": 2
+        },
+        {
+          "feature_key": "email_support",
+          "feature_name": "Email Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Access to email support",
+          "sort_order": 3
+        }
+      ]
+    },
+    {
+      "name": "Pro",
+      "slug": "pro",
+      "description": "For professionals and small teams",
+      "price": 19.99,
+      "billing_cycle": "monthly",
+      "trial_days": 14,
+      "is_popular": true,
+      "sort_order": 2,
+      "features": [
+        {
+          "feature_key": "max_projects",
+          "feature_name": "Maximum Projects",
+          "feature_type": "numeric",
+          "feature_limit": "15",
+          "is_unlimited": false,
+          "description": "Number of projects you can create",
+          "sort_order": 1
+        },
+        {
+          "feature_key": "storage_gb",
+          "feature_name": "Storage Space",
+          "feature_type": "numeric",
+          "feature_limit": "50",
+          "is_unlimited": false,
+          "description": "Storage space in GB",
+          "sort_order": 2
+        },
+        {
+          "feature_key": "api_calls",
+          "feature_name": "API Calls per Month",
+          "feature_type": "numeric",
+          "feature_limit": "5000",
+          "is_unlimited": false,
+          "description": "Monthly API call limit",
+          "sort_order": 3
+        },
+        {
+          "feature_key": "email_support",
+          "feature_name": "Email Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Access to email support",
+          "sort_order": 4
+        },
+        {
+          "feature_key": "priority_support",
+          "feature_name": "Priority Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Priority customer support",
+          "sort_order": 5
+        },
+        {
+          "feature_key": "advanced_analytics",
+          "feature_name": "Advanced Analytics",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Access to advanced analytics",
+          "sort_order": 6
+        }
+      ]
+    },
+    {
+      "name": "Business",
+      "slug": "business",
+      "description": "For growing businesses",
+      "price": 49.99,
+      "billing_cycle": "monthly",
+      "trial_days": 30,
+      "is_popular": false,
+      "sort_order": 3,
+      "features": [
+        {
+          "feature_key": "max_projects",
+          "feature_name": "Maximum Projects",
+          "feature_type": "numeric",
+          "feature_limit": null,
+          "is_unlimited": true,
+          "description": "Unlimited projects",
+          "sort_order": 1
+        },
+        {
+          "feature_key": "storage_gb",
+          "feature_name": "Storage Space",
+          "feature_type": "numeric",
+          "feature_limit": "200",
+          "is_unlimited": false,
+          "description": "Storage space in GB",
+          "sort_order": 2
+        },
+        {
+          "feature_key": "api_calls",
+          "feature_name": "API Calls per Month",
+          "feature_type": "numeric",
+          "feature_limit": null,
+          "is_unlimited": true,
+          "description": "Unlimited API calls",
+          "sort_order": 3
+        },
+        {
+          "feature_key": "team_members",
+          "feature_name": "Team Members",
+          "feature_type": "numeric",
+          "feature_limit": "10",
+          "is_unlimited": false,
+          "description": "Number of team members",
+          "sort_order": 4
+        },
+        {
+          "feature_key": "email_support",
+          "feature_name": "Email Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Access to email support",
+          "sort_order": 5
+        },
+        {
+          "feature_key": "priority_support",
+          "feature_name": "Priority Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Priority customer support",
+          "sort_order": 6
+        },
+        {
+          "feature_key": "phone_support",
+          "feature_name": "Phone Support",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Phone support access",
+          "sort_order": 7
+        },
+        {
+          "feature_key": "advanced_analytics",
+          "feature_name": "Advanced Analytics",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "Access to advanced analytics",
+          "sort_order": 8
+        },
+        {
+          "feature_key": "custom_integrations",
+          "feature_name": "Custom Integrations",
+          "feature_type": "numeric",
+          "feature_limit": "5",
+          "is_unlimited": false,
+          "description": "Number of custom integrations",
+          "sort_order": 9
+        },
+        {
+          "feature_key": "white_label",
+          "feature_name": "White Label",
+          "feature_type": "boolean",
+          "feature_limit": "1",
+          "is_unlimited": false,
+          "description": "White label branding options",
+          "sort_order": 10
+        }
+      ]
+    }
+  ]
+}

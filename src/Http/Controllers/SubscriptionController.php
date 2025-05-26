@@ -126,7 +126,14 @@ class SubscriptionController extends Controller
     public function store(CreateSubscriptionRequest $request): JsonResponse|RedirectResponse
     {
         $user = $request->user();
+
+        // Check authorization to create subscriptions
+        $this->authorize('create', UserSubscription::class);
+
         $plan = SubscriptionPlan::where('slug', $request->plan_slug)->firstOrFail();
+
+        // Check authorization to subscribe to this specific plan
+        $this->authorize('subscribe', $plan);
 
         try {
             $subscription = $this->subscriptionService->createSubscription(
@@ -315,7 +322,7 @@ class SubscriptionController extends Controller
             if ($feature->feature_type === 'numeric') {
                 $currentUsage = $subscription->getCurrentUsage($feature->feature_key);
                 $limit = $feature->typed_limit;
-                
+
                 $usageData[] = [
                     'feature_key' => $feature->feature_key,
                     'feature_name' => $feature->feature_name,

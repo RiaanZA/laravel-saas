@@ -135,4 +135,53 @@ return [
         'ttl' => 3600, // 1 hour
         'prefix' => 'laravel_subscription',
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Authorization Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure authorization settings for subscription management.
+    |
+    */
+    'authorization' => [
+        // Admin email addresses for policy checks
+        'admin_emails' => array_filter(explode(',', env('SUBSCRIPTION_ADMIN_EMAILS', ''))),
+
+        // Super admin email addresses
+        'super_admin_emails' => array_filter(explode(',', env('SUBSCRIPTION_SUPER_ADMIN_EMAILS', ''))),
+
+        // Premium plan slugs
+        'premium_plans' => ['professional', 'premium', 'pro'],
+
+        // Enterprise plan slugs
+        'enterprise_plans' => ['enterprise', 'business'],
+
+        // Price thresholds for plan tiers
+        'premium_threshold' => 25.00,
+        'enterprise_threshold' => 75.00,
+
+        // Policy settings
+        'policies' => [
+            'allow_multiple_subscriptions' => false,
+            'allow_plan_changes' => true,
+            'allow_cancellation' => true,
+            'allow_resumption' => true,
+            'require_payment_method' => true,
+            'allow_trial_extensions' => false,
+            'allow_usage_overrides' => false,
+        ],
+
+        // Feature access control
+        'feature_gates' => [
+            'api_access' => ['professional', 'enterprise'],
+            'advanced_analytics' => ['professional', 'enterprise'],
+            'priority_support' => ['professional', 'enterprise'],
+            'phone_support' => ['enterprise'],
+            'white_label' => ['enterprise'],
+            'sso_integration' => ['enterprise'],
+            'custom_branding' => ['enterprise'],
+            'dedicated_manager' => ['enterprise'],
+        ],
+    ],
 ];
