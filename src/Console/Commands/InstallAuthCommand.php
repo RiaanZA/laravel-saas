@@ -17,7 +17,7 @@ class InstallAuthCommand extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Install authentication scaffolding for Laravel Subscription package';
+    protected $description = 'Install complete frontend scaffolding for Laravel Subscription package';
 
     /**
      * The filesystem instance.
@@ -38,13 +38,13 @@ class InstallAuthCommand extends Command
      */
     public function handle(): int
     {
-        $this->info('Installing Laravel Subscription Authentication...');
+        $this->info('Installing Laravel Subscription Frontend...');
 
         // Setup Inertia.js infrastructure
         $this->setupInertiaInfrastructure();
 
-        // Publish authentication assets
-        $this->publishAuthAssets();
+        // Publish all frontend assets
+        $this->publishFrontendAssets();
 
         // Update app.js to include auth pages
         $this->updateAppJs();
@@ -62,42 +62,61 @@ class InstallAuthCommand extends Command
         $this->publishFrontendConfig();
 
         $this->info('');
-        $this->info('Authentication scaffolding installed successfully!');
+        $this->info('Frontend scaffolding installed successfully!');
         $this->info('');
         $this->info('Next steps:');
         $this->info('1. Run: npm install && npm run build');
         $this->info('2. Run: php artisan migrate');
         $this->info('3. Visit /login to test authentication');
+        $this->info('4. Visit /subscription/plans to test subscription system');
         $this->info('');
 
         return 0;
     }
 
     /**
-     * Publish authentication assets.
+     * Publish all frontend assets.
      */
-    protected function publishAuthAssets(): void
+    protected function publishFrontendAssets(): void
     {
-        $this->info('Publishing authentication views and components...');
+        $this->info('Publishing frontend views and components...');
 
         // Define source and destination paths
         $sourcePath = __DIR__ . '/../../../resources/js';
 
-        // Copy auth pages to main Pages directory (for Vite manifest)
-        $pagesDestination = resource_path('js/Pages/Auth');
+        // Copy all pages to main Pages directory (for Vite manifest)
+        $pagesDestination = resource_path('js/Pages');
         if (!$this->files->isDirectory($pagesDestination)) {
             $this->files->makeDirectory($pagesDestination, 0755, true);
         }
-        $this->copyDirectory($sourcePath . '/Pages/Auth', $pagesDestination);
+        $this->copyDirectory($sourcePath . '/Pages', $pagesDestination);
 
-        // Copy auth components to main Components directory
-        $componentsDestination = resource_path('js/Components/Auth');
+        // Copy all components to main Components directory
+        $componentsDestination = resource_path('js/Components');
         if (!$this->files->isDirectory($componentsDestination)) {
             $this->files->makeDirectory($componentsDestination, 0755, true);
         }
-        $this->copyDirectory($sourcePath . '/Components/Auth', $componentsDestination);
+        $this->copyDirectory($sourcePath . '/Components', $componentsDestination);
 
-        $this->info('✓ Authentication views published to main directories');
+        // Copy lowercase components directory (used by subscription.js)
+        $lowercaseComponentsDestination = resource_path('js/components');
+        if (!$this->files->isDirectory($lowercaseComponentsDestination)) {
+            $this->files->makeDirectory($lowercaseComponentsDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/components', $lowercaseComponentsDestination);
+
+        // Copy any additional JS files (like subscription.js)
+        $additionalFiles = ['subscription.js'];
+        foreach ($additionalFiles as $file) {
+            $sourceFile = $sourcePath . '/' . $file;
+            $destinationFile = resource_path('js/' . $file);
+            if ($this->files->exists($sourceFile)) {
+                $this->files->copy($sourceFile, $destinationFile);
+                $this->info("✓ Published {$file}");
+            }
+        }
+
+        $this->info('✓ All frontend assets published to main directories');
     }
 
     /**

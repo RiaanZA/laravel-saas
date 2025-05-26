@@ -12,7 +12,7 @@ php artisan subscription:install-auth
 
 This command will:
 - **Setup Inertia.js infrastructure**: Creates `app.blade.php` layout and Inertia middleware
-- **Publish authentication components**: Vue 3 authentication pages and components to main directories
+- **Publish all frontend components**: Vue 3 pages and components for authentication and subscriptions
 - **Configure frontend**: Creates/updates `app.js` with standard Inertia page resolution
 - **Setup build tools**: Publishes `package.json`, `vite.config.js`, `tailwind.config.js`, etc.
 - **Update User model**: Adds subscription traits to your User model
@@ -112,6 +112,13 @@ The authentication system provides the following routes:
 - `GET /verify-email` - Email verification notice
 - `POST /logout` - Logout
 
+### Subscription Routes
+
+- `GET /subscription/plans` - View available plans
+- `GET /subscription/dashboard` - Subscription dashboard
+- `GET /subscription/checkout/{plan}` - Checkout page for a plan
+- `GET /subscription/success` - Payment success page
+
 ## Authentication Flow
 
 1. **Registration**: Users can register at `/register`
@@ -122,36 +129,64 @@ The authentication system provides the following routes:
 
 ## File Structure
 
-After running the install command, authentication files are published to:
+After running the install command, all frontend files are published to:
 
 ```
 resources/
 ├── js/
 │   ├── Pages/
-│   │   └── Auth/
-│   │       ├── Login.vue
-│   │       ├── Register.vue
-│   │       ├── ForgotPassword.vue
-│   │       ├── ResetPassword.vue
-│   │       └── VerifyEmail.vue
+│   │   ├── Auth/
+│   │   │   ├── Login.vue
+│   │   │   ├── Register.vue
+│   │   │   ├── ForgotPassword.vue
+│   │   │   ├── ResetPassword.vue
+│   │   │   └── VerifyEmail.vue
+│   │   └── Subscription/
+│   │       ├── Dashboard.vue
+│   │       ├── Plans.vue
+│   │       ├── Checkout.vue
+│   │       └── Success.vue
 │   ├── Components/
-│   │   └── Auth/
-│   │       └── AuthLayout.vue
-│   └── app.js
+│   │   ├── Auth/
+│   │   │   └── AuthLayout.vue
+│   │   ├── Subscription/
+│   │   │   ├── CancelSubscriptionModal.vue
+│   │   │   ├── PaymentForm.vue
+│   │   │   ├── PlanCard.vue
+│   │   │   ├── SubscriptionStatus.vue
+│   │   │   └── UsageMetrics.vue
+│   │   └── UI/
+│   │       └── LoadingSpinner.vue
+│   ├── components/
+│   │   └── subscription/
+│   │       ├── AlertsPanel.vue
+│   │       ├── PlanSelector.vue
+│   │       ├── SubscriptionDashboard.vue
+│   │       ├── UsageCard.vue
+│   │       └── ... (more components)
+│   ├── app.js
+│   └── subscription.js
 ├── css/
 │   └── app.css
 └── views/
     └── app.blade.php
 ```
 
+**Note**: The package includes two component directories:
+- `Components/` (capitalized) - Used by Inertia.js pages
+- `components/` (lowercase) - Used by standalone subscription.js for non-Inertia integration
+
 ## Customization
 
 ### Styling
 
-The authentication pages use Tailwind CSS classes. You can customize the styling by:
+All pages and components use Tailwind CSS classes. You can customize the styling by:
 
 1. Running the install command: `php artisan subscription:install-auth`
-2. Modifying the Vue components in `resources/js/Pages/Auth/` and `resources/js/Components/Auth/`
+2. Modifying the Vue components in:
+   - `resources/js/Pages/Auth/` - Authentication pages
+   - `resources/js/Pages/Subscription/` - Subscription pages
+   - `resources/js/Components/` - All reusable components
 
 ### Redirects
 
@@ -229,9 +264,10 @@ export default {
 
 ## Next Steps
 
-After setting up authentication:
+After setting up the complete frontend:
 
 1. Run migrations: `php artisan migrate`
 2. Seed some plans: `php artisan subscription:seed-plans`
-3. Visit `/login` to test the authentication
-4. Visit `/subscription/plans` to see the subscription interface
+3. Visit `/login` to test authentication
+4. Visit `/subscription/plans` to test the subscription system
+5. Visit `/subscription/dashboard` to test the subscription dashboard
