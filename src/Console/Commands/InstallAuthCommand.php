@@ -148,7 +148,13 @@ class InstallAuthCommand extends Command
 
         // Check if already configured for standard page resolution
         if (Str::contains($content, 'import.meta.glob(\'./Pages/**/*.vue\')')) {
-            $this->info('✓ app.js already configured for page resolution');
+            // Check if Ziggy is configured
+            if (!Str::contains($content, 'ziggy-js') || !Str::contains($content, 'ZiggyVue')) {
+                $this->warn('app.js needs Ziggy configuration. Updating...');
+                $this->addZiggyToAppJs($content, $appJsPath);
+            } else {
+                $this->info('✓ app.js already configured for page resolution and Ziggy');
+            }
             return;
         }
 
@@ -170,6 +176,7 @@ class InstallAuthCommand extends Command
         $appJsContent = "import { createApp, h } from 'vue'
 import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
+import { ZiggyVue } from 'ziggy-js'
 
 createInertiaApp({
   title: (title) => `\${title} - Laravel`,
@@ -177,6 +184,7 @@ createInertiaApp({
   setup({ el, App, props, plugin }) {
     return createApp({ render: () => h(App, props) })
       .use(plugin)
+      .use(ZiggyVue)
       .mount(el)
   },
   progress: {
@@ -186,6 +194,33 @@ createInertiaApp({
 
         $this->files->put(resource_path('js/app.js'), $appJsContent);
         $this->info('✓ Created app.js with standard page resolution');
+    }
+
+    /**
+     * Add Ziggy configuration to existing app.js.
+     */
+    protected function addZiggyToAppJs(string $content, string $appJsPath): void
+    {
+        // Add Ziggy import if not present
+        if (!Str::contains($content, 'ziggy-js')) {
+            $content = str_replace(
+                "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'",
+                "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'\nimport { ZiggyVue } from 'ziggy-js'",
+                $content
+            );
+        }
+
+        // Add ZiggyVue plugin if not present
+        if (!Str::contains($content, '.use(ZiggyVue)')) {
+            $content = str_replace(
+                '.use(plugin)',
+                '.use(plugin)\n      .use(ZiggyVue)',
+                $content
+            );
+        }
+
+        $this->files->put($appJsPath, $content);
+        $this->info('✓ Added Ziggy configuration to app.js');
     }
 
     /**
