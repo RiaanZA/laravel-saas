@@ -82,18 +82,22 @@ class InstallAuthCommand extends Command
 
         // Define source and destination paths
         $sourcePath = __DIR__ . '/../../../resources/js';
-        $destinationPath = resource_path('js/vendor/laravel-subscription');
 
-        // Create destination directory if it doesn't exist
-        if (!$this->files->isDirectory($destinationPath)) {
-            $this->files->makeDirectory($destinationPath, 0755, true);
+        // Copy auth pages to main Pages directory (for Vite manifest)
+        $pagesDestination = resource_path('js/Pages/Auth');
+        if (!$this->files->isDirectory($pagesDestination)) {
+            $this->files->makeDirectory($pagesDestination, 0755, true);
         }
+        $this->copyDirectory($sourcePath . '/Pages/Auth', $pagesDestination);
 
-        // Copy auth pages and components
-        $this->copyDirectory($sourcePath . '/Pages/Auth', $destinationPath . '/Pages/Auth');
-        $this->copyDirectory($sourcePath . '/Components/Auth', $destinationPath . '/Components/Auth');
+        // Copy auth components to main Components directory
+        $componentsDestination = resource_path('js/Components/Auth');
+        if (!$this->files->isDirectory($componentsDestination)) {
+            $this->files->makeDirectory($componentsDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/Components/Auth', $componentsDestination);
 
-        $this->info('✓ Authentication views published');
+        $this->info('✓ Authentication views published to main directories');
     }
 
     /**
@@ -111,47 +115,20 @@ class InstallAuthCommand extends Command
 
         $content = $this->files->get($appJsPath);
 
-        // Check if already configured
-        if (Str::contains($content, 'laravel-subscription')) {
-            $this->info('✓ app.js already configured for authentication');
+        // Check if already configured for standard page resolution
+        if (Str::contains($content, 'import.meta.glob(\'./Pages/**/*.vue\')')) {
+            $this->info('✓ app.js already configured for page resolution');
             return;
         }
 
-        // Add auth page resolution
-        $authPageResolution = "
-// Laravel Subscription Auth Pages
-const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.vue');
-";
+        // If app.js exists but doesn't have proper page resolution, update it
+        if (!Str::contains($content, 'resolvePageComponent')) {
+            $this->warn('app.js exists but needs Inertia setup. Recreating...');
+            $this->createAppJs();
+            return;
+        }
 
-        // Update resolve function to include auth pages
-        $resolveFunction = "resolve: (name) => {
-    // Check for auth pages first
-    if (name.startsWith('Auth/')) {
-      const authPagePath = `./vendor/laravel-subscription/Pages/\${name}.vue`;
-      if (authPages[authPagePath]) {
-        return authPages[authPagePath]();
-      }
-    }
-
-    // Default page resolution
-    return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
-  },";
-
-        $updatedContent = str_replace(
-            "resolve: (name) => resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue')),",
-            $resolveFunction,
-            $content
-        );
-
-        // Add auth pages import
-        $updatedContent = str_replace(
-            "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'",
-            "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'\n" . $authPageResolution,
-            $updatedContent
-        );
-
-        $this->files->put($appJsPath, $updatedContent);
-        $this->info('✓ app.js updated to include authentication pages');
+        $this->info('✓ app.js configuration verified');
     }
 
     /**
@@ -163,23 +140,9 @@ const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.v
 import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 
-// Laravel Subscription Auth Pages
-const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.vue');
-
 createInertiaApp({
   title: (title) => `\${title} - Laravel`,
-  resolve: (name) => {
-    // Check for auth pages first
-    if (name.startsWith('Auth/')) {
-      const authPagePath = `./vendor/laravel-subscription/Pages/\${name}.vue`;
-      if (authPages[authPagePath]) {
-        return authPages[authPagePath]();
-      }
-    }
-
-    // Default page resolution
-    return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
-  },
+  resolve: (name) => resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
   setup({ el, App, props, plugin }) {
     return createApp({ render: () => h(App, props) })
       .use(plugin)
@@ -191,7 +154,7 @@ createInertiaApp({
 })";
 
         $this->files->put(resource_path('js/app.js'), $appJsContent);
-        $this->info('✓ Created app.js with authentication support');
+        $this->info('✓ Created app.js with standard page resolution');
     }
 
     /**
@@ -315,7 +278,7 @@ createInertiaApp({
 
         <!-- Scripts -->
         @routes
-        @vite([\'resources/js/app.js\', "resources/js/Pages/{$page[\'component\']}.vue"])
+        @vite([\'resources/css/app.css\', \'resources/js/app.js\'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">
