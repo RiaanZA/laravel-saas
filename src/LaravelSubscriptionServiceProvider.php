@@ -5,6 +5,7 @@ namespace RiaanZA\LaravelSubscription;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Route;
 use RiaanZA\LaravelSubscription\Console\Commands\InstallCommand;
+use RiaanZA\LaravelSubscription\Console\Commands\InstallAuthCommand;
 use RiaanZA\LaravelSubscription\Console\Commands\SeedPlansCommand;
 use RiaanZA\LaravelSubscription\Console\Commands\ListPlansCommand;
 use RiaanZA\LaravelSubscription\Console\Commands\CleanupCommand;
@@ -68,6 +69,7 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
         // Load routes
         $this->loadRoutesFrom(__DIR__.'/../routes/web.php');
         $this->loadRoutesFrom(__DIR__.'/../routes/api.php');
+        $this->loadRoutesFrom(__DIR__.'/../routes/auth.php');
 
         // Load views
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'laravel-subscription');
@@ -83,6 +85,7 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
+                InstallAuthCommand::class,
                 SeedPlansCommand::class,
                 ListPlansCommand::class,
                 CleanupCommand::class,

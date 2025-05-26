@@ -38,13 +38,25 @@ composer require riaan-za/laravel-subscription-management
 php artisan subscription:install
 ```
 
-3. Run migrations:
+3. Install authentication scaffolding:
+
+```bash
+php artisan subscription:install-auth
+```
+
+4. Build frontend assets:
+
+```bash
+npm install && npm run build
+```
+
+5. Run migrations:
 
 ```bash
 php artisan migrate
 ```
 
-4. Seed sample plans:
+6. Seed sample plans:
 
 ```bash
 php artisan subscription:seed-plans
@@ -66,6 +78,27 @@ PEACH_CLIENT_ID=your_client_id
 PEACH_CLIENT_SECRET=your_client_secret
 PEACH_WEBHOOK_SECRET=your_webhook_secret
 ```
+
+## Authentication
+
+The package includes complete authentication scaffolding built with Inertia.js and Vue 3:
+
+- **Login/Register**: Full user authentication system
+- **Password Reset**: Email-based password recovery
+- **Email Verification**: Optional email verification flow
+- **Laravel Sanctum**: API authentication ready
+
+### Authentication Routes
+
+- `/login` - User login
+- `/register` - User registration
+- `/forgot-password` - Password reset request
+- `/reset-password/{token}` - Password reset form
+- `/verify-email` - Email verification
+
+### Customization
+
+For detailed authentication setup and customization options, see [AUTH_SETUP.md](AUTH_SETUP.md).
 
 ## Usage
 
