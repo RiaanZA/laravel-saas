@@ -12,7 +12,7 @@ class InstallCommand extends Command
     /**
      * The name and signature of the console command.
      */
-    protected $signature = 'subscription:install 
+    protected $signature = 'subscription:install
                             {--force : Overwrite existing files}
                             {--seed : Seed sample subscription plans}
                             {--migrate : Run migrations after installation}
@@ -78,7 +78,7 @@ class InstallCommand extends Command
     protected function checkLaravelVersion(): bool
     {
         $laravelVersion = app()->version();
-        $requiredVersion = '11.0';
+        $requiredVersion = '12.0';
 
         if (version_compare($laravelVersion, $requiredVersion, '<')) {
             $this->error("❌ Laravel {$requiredVersion} or higher is required. Current version: {$laravelVersion}");
@@ -97,7 +97,7 @@ class InstallCommand extends Command
         $this->info('📝 Publishing configuration...');
 
         $configExists = File::exists(config_path('laravel-subscription.php'));
-        
+
         if ($configExists && !$this->option('force')) {
             if (!$this->confirm('Configuration file already exists. Overwrite?')) {
                 $this->warn('⚠️  Skipping configuration publishing');
@@ -138,7 +138,7 @@ class InstallCommand extends Command
         $this->info('🎨 Publishing assets...');
 
         $assetsExist = File::exists(resource_path('js/vendor/laravel-subscription'));
-        
+
         if ($assetsExist && !$this->option('force')) {
             if (!$this->confirm('Assets already exist. Overwrite?')) {
                 $this->warn('⚠️  Skipping asset publishing');
@@ -163,7 +163,7 @@ class InstallCommand extends Command
         $this->info('👤 Adding HasSubscriptions trait to User model...');
 
         $userModelPath = app_path('Models/User.php');
-        
+
         if (!File::exists($userModelPath)) {
             $this->warn('⚠️  User model not found at expected location');
             return;
@@ -214,7 +214,7 @@ class InstallCommand extends Command
         $this->info('🔧 Updating environment configuration...');
 
         $envPath = base_path('.env');
-        
+
         if (!File::exists($envPath)) {
             $this->warn('⚠️  .env file not found');
             return;
@@ -238,7 +238,7 @@ class InstallCommand extends Command
             $envContent .= "\n\n# Laravel Subscription Management\n" . implode("\n", $newVars) . "\n";
             File::put($envPath, $envContent);
             $this->info('✅ Environment variables added');
-            
+
             foreach ($newVars as $var) {
                 $this->line("   {$var}");
             }
@@ -287,7 +287,7 @@ class InstallCommand extends Command
         $this->info('📦 Installing npm dependencies...');
 
         $packageJsonPath = base_path('package.json');
-        
+
         if (!File::exists($packageJsonPath)) {
             $this->warn('⚠️  package.json not found');
             return;
@@ -313,7 +313,7 @@ class InstallCommand extends Command
             foreach ($missingDeps as $dep => $version) {
                 $this->line("   {$dep}: {$version}");
             }
-            
+
             if ($this->confirm('Install missing dependencies?')) {
                 $deps = array_map(fn($dep, $version) => "{$dep}@{$version}", array_keys($missingDeps), $missingDeps);
                 $this->runNpmCommand(['install', '--save'] + $deps);

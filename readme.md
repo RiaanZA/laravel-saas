@@ -16,8 +16,8 @@ A comprehensive Laravel package for SaaS subscription management with Vue 3, Ine
 
 ## Requirements
 
-- PHP 8.1 or higher
-- Laravel 11.0 or higher
+- PHP 8.2 or higher
+- Laravel 12.0 or higher
 - Vue 3
 - Inertia.js
 - Tailwind CSS
@@ -29,6 +29,8 @@ A comprehensive Laravel package for SaaS subscription management with Vue 3, Ine
 ```bash
 composer require riaan-za/laravel-subscription-management
 ```
+
+> **Note**: Version 2.x requires Laravel 12+ and PHP 8.2+. For Laravel 11 support, use version 1.x.
 
 2. Install the package:
 

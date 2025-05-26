@@ -45,7 +45,7 @@ class LaravelSubscriptionManager
      */
     public function version(): string
     {
-        return '1.0.0';
+        return '2.0.0';
     }
 
     /**
