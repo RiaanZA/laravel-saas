@@ -17,7 +17,7 @@ class InstallAuthCommand extends Command
     /**
      * The console command description.
      */
-    protected $description = 'Install authentication scaffolding for Laravel Subscription package';
+    protected $description = 'Install complete frontend scaffolding for Laravel Subscription package';
 
     /**
      * The filesystem instance.
@@ -38,13 +38,13 @@ class InstallAuthCommand extends Command
      */
     public function handle(): int
     {
-        $this->info('Installing Laravel Subscription Authentication...');
+        $this->info('Installing Laravel Subscription Frontend...');
 
         // Setup Inertia.js infrastructure
         $this->setupInertiaInfrastructure();
 
-        // Publish authentication assets
-        $this->publishAuthAssets();
+        // Publish all frontend assets
+        $this->publishFrontendAssets();
 
         // Update app.js to include auth pages
         $this->updateAppJs();
@@ -62,38 +62,61 @@ class InstallAuthCommand extends Command
         $this->publishFrontendConfig();
 
         $this->info('');
-        $this->info('Authentication scaffolding installed successfully!');
+        $this->info('Frontend scaffolding installed successfully!');
         $this->info('');
         $this->info('Next steps:');
         $this->info('1. Run: npm install && npm run build');
         $this->info('2. Run: php artisan migrate');
         $this->info('3. Visit /login to test authentication');
+        $this->info('4. Visit /subscription/plans to test subscription system');
         $this->info('');
 
         return 0;
     }
 
     /**
-     * Publish authentication assets.
+     * Publish all frontend assets.
      */
-    protected function publishAuthAssets(): void
+    protected function publishFrontendAssets(): void
     {
-        $this->info('Publishing authentication views and components...');
+        $this->info('Publishing frontend views and components...');
 
         // Define source and destination paths
         $sourcePath = __DIR__ . '/../../../resources/js';
-        $destinationPath = resource_path('js/vendor/laravel-subscription');
 
-        // Create destination directory if it doesn't exist
-        if (!$this->files->isDirectory($destinationPath)) {
-            $this->files->makeDirectory($destinationPath, 0755, true);
+        // Copy all pages to main Pages directory (for Vite manifest)
+        $pagesDestination = resource_path('js/Pages');
+        if (!$this->files->isDirectory($pagesDestination)) {
+            $this->files->makeDirectory($pagesDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/Pages', $pagesDestination);
+
+        // Copy all components to main Components directory
+        $componentsDestination = resource_path('js/Components');
+        if (!$this->files->isDirectory($componentsDestination)) {
+            $this->files->makeDirectory($componentsDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/Components', $componentsDestination);
+
+        // Copy lowercase components directory (used by subscription.js)
+        $lowercaseComponentsDestination = resource_path('js/components');
+        if (!$this->files->isDirectory($lowercaseComponentsDestination)) {
+            $this->files->makeDirectory($lowercaseComponentsDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/components', $lowercaseComponentsDestination);
+
+        // Copy any additional JS files (like subscription.js)
+        $additionalFiles = ['subscription.js'];
+        foreach ($additionalFiles as $file) {
+            $sourceFile = $sourcePath . '/' . $file;
+            $destinationFile = resource_path('js/' . $file);
+            if ($this->files->exists($sourceFile)) {
+                $this->files->copy($sourceFile, $destinationFile);
+                $this->info("✓ Published {$file}");
+            }
         }
 
-        // Copy auth pages and components
-        $this->copyDirectory($sourcePath . '/Pages/Auth', $destinationPath . '/Pages/Auth');
-        $this->copyDirectory($sourcePath . '/Components/Auth', $destinationPath . '/Components/Auth');
-
-        $this->info('✓ Authentication views published');
+        $this->info('✓ All frontend assets published to main directories');
     }
 
     /**
@@ -111,47 +134,20 @@ class InstallAuthCommand extends Command
 
         $content = $this->files->get($appJsPath);
 
-        // Check if already configured
-        if (Str::contains($content, 'laravel-subscription')) {
-            $this->info('✓ app.js already configured for authentication');
+        // Check if already configured for standard page resolution
+        if (Str::contains($content, 'import.meta.glob(\'./Pages/**/*.vue\')')) {
+            $this->info('✓ app.js already configured for page resolution');
             return;
         }
 
-        // Add auth page resolution
-        $authPageResolution = "
-// Laravel Subscription Auth Pages
-const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.vue');
-";
+        // If app.js exists but doesn't have proper page resolution, update it
+        if (!Str::contains($content, 'resolvePageComponent')) {
+            $this->warn('app.js exists but needs Inertia setup. Recreating...');
+            $this->createAppJs();
+            return;
+        }
 
-        // Update resolve function to include auth pages
-        $resolveFunction = "resolve: (name) => {
-    // Check for auth pages first
-    if (name.startsWith('Auth/')) {
-      const authPagePath = `./vendor/laravel-subscription/Pages/\${name}.vue`;
-      if (authPages[authPagePath]) {
-        return authPages[authPagePath]();
-      }
-    }
-
-    // Default page resolution
-    return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
-  },";
-
-        $updatedContent = str_replace(
-            "resolve: (name) => resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue')),",
-            $resolveFunction,
-            $content
-        );
-
-        // Add auth pages import
-        $updatedContent = str_replace(
-            "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'",
-            "import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'\n" . $authPageResolution,
-            $updatedContent
-        );
-
-        $this->files->put($appJsPath, $updatedContent);
-        $this->info('✓ app.js updated to include authentication pages');
+        $this->info('✓ app.js configuration verified');
     }
 
     /**
@@ -163,23 +159,9 @@ const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.v
 import { createInertiaApp } from '@inertiajs/vue3'
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers'
 
-// Laravel Subscription Auth Pages
-const authPages = import.meta.glob('./vendor/laravel-subscription/Pages/Auth/*.vue');
-
 createInertiaApp({
   title: (title) => `\${title} - Laravel`,
-  resolve: (name) => {
-    // Check for auth pages first
-    if (name.startsWith('Auth/')) {
-      const authPagePath = `./vendor/laravel-subscription/Pages/\${name}.vue`;
-      if (authPages[authPagePath]) {
-        return authPages[authPagePath]();
-      }
-    }
-
-    // Default page resolution
-    return resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
-  },
+  resolve: (name) => resolvePageComponent(`./Pages/\${name}.vue`, import.meta.glob('./Pages/**/*.vue')),
   setup({ el, App, props, plugin }) {
     return createApp({ render: () => h(App, props) })
       .use(plugin)
@@ -191,7 +173,7 @@ createInertiaApp({
 })";
 
         $this->files->put(resource_path('js/app.js'), $appJsContent);
-        $this->info('✓ Created app.js with authentication support');
+        $this->info('✓ Created app.js with standard page resolution');
     }
 
     /**
@@ -315,7 +297,7 @@ createInertiaApp({
 
         <!-- Scripts -->
         @routes
-        @vite([\'resources/js/app.js\', "resources/js/Pages/{$page[\'component\']}.vue"])
+        @vite([\'resources/css/app.css\', \'resources/js/app.js\'])
         @inertiaHead
     </head>
     <body class="font-sans antialiased">

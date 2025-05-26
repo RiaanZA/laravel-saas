@@ -12,8 +12,8 @@ php artisan subscription:install-auth
 
 This command will:
 - **Setup Inertia.js infrastructure**: Creates `app.blade.php` layout and Inertia middleware
-- **Publish authentication components**: Vue 3 authentication pages and components
-- **Configure frontend**: Updates `app.js` to include auth page resolution
+- **Publish all frontend components**: Vue 3 pages and components for authentication and subscriptions
+- **Configure frontend**: Creates/updates `app.js` with standard Inertia page resolution
 - **Setup build tools**: Publishes `package.json`, `vite.config.js`, `tailwind.config.js`, etc.
 - **Update User model**: Adds subscription traits to your User model
 - **Publish configuration**: Package configuration files
@@ -112,6 +112,13 @@ The authentication system provides the following routes:
 - `GET /verify-email` - Email verification notice
 - `POST /logout` - Logout
 
+### Subscription Routes
+
+- `GET /subscription/plans` - View available plans
+- `GET /subscription/dashboard` - Subscription dashboard
+- `GET /subscription/checkout/{plan}` - Checkout page for a plan
+- `GET /subscription/success` - Payment success page
+
 ## Authentication Flow
 
 1. **Registration**: Users can register at `/register`
@@ -120,14 +127,66 @@ The authentication system provides the following routes:
 4. **Password Reset**: Full password reset functionality
 5. **Subscription Access**: After login, users are redirected to subscription plans
 
+## File Structure
+
+After running the install command, all frontend files are published to:
+
+```
+resources/
+├── js/
+│   ├── Pages/
+│   │   ├── Auth/
+│   │   │   ├── Login.vue
+│   │   │   ├── Register.vue
+│   │   │   ├── ForgotPassword.vue
+│   │   │   ├── ResetPassword.vue
+│   │   │   └── VerifyEmail.vue
+│   │   └── Subscription/
+│   │       ├── Dashboard.vue
+│   │       ├── Plans.vue
+│   │       ├── Checkout.vue
+│   │       └── Success.vue
+│   ├── Components/
+│   │   ├── Auth/
+│   │   │   └── AuthLayout.vue
+│   │   ├── Subscription/
+│   │   │   ├── CancelSubscriptionModal.vue
+│   │   │   ├── PaymentForm.vue
+│   │   │   ├── PlanCard.vue
+│   │   │   ├── SubscriptionStatus.vue
+│   │   │   └── UsageMetrics.vue
+│   │   └── UI/
+│   │       └── LoadingSpinner.vue
+│   ├── components/
+│   │   └── subscription/
+│   │       ├── AlertsPanel.vue
+│   │       ├── PlanSelector.vue
+│   │       ├── SubscriptionDashboard.vue
+│   │       ├── UsageCard.vue
+│   │       └── ... (more components)
+│   ├── app.js
+│   └── subscription.js
+├── css/
+│   └── app.css
+└── views/
+    └── app.blade.php
+```
+
+**Note**: The package includes two component directories:
+- `Components/` (capitalized) - Used by Inertia.js pages
+- `components/` (lowercase) - Used by standalone subscription.js for non-Inertia integration
+
 ## Customization
 
 ### Styling
 
-The authentication pages use Tailwind CSS classes. You can customize the styling by:
+All pages and components use Tailwind CSS classes. You can customize the styling by:
 
-1. Publishing the views: `php artisan vendor:publish --tag=laravel-subscription-assets`
-2. Modifying the Vue components in `resources/js/vendor/laravel-subscription/`
+1. Running the install command: `php artisan subscription:install-auth`
+2. Modifying the Vue components in:
+   - `resources/js/Pages/Auth/` - Authentication pages
+   - `resources/js/Pages/Subscription/` - Subscription pages
+   - `resources/js/Components/` - All reusable components
 
 ### Redirects
 
@@ -170,18 +229,26 @@ Ensure you've built your assets after installation:
 npm run build
 ```
 
+### Unable to locate file in Vite manifest
+
+If you see an error like "Unable to locate file in Vite manifest: resources/js/Pages/Auth/Login.vue", this means the authentication pages weren't properly published. Run:
+
+```bash
+php artisan subscription:install-auth --force
+npm run build
+```
+
 ### Styling issues
 
-Make sure Tailwind CSS is properly configured in your project and includes the package's Vue files in the content paths:
+Make sure Tailwind CSS is properly configured in your project. The install command creates a proper `tailwind.config.js`, but if you have custom configuration, ensure it includes:
 
 ```javascript
 // tailwind.config.js
-module.exports = {
+export default {
   content: [
     "./resources/**/*.blade.php",
     "./resources/**/*.js",
     "./resources/**/*.vue",
-    "./resources/js/vendor/laravel-subscription/**/*.vue", // Add this line
   ],
   // ...
 }
@@ -197,9 +264,10 @@ module.exports = {
 
 ## Next Steps
 
-After setting up authentication:
+After setting up the complete frontend:
 
 1. Run migrations: `php artisan migrate`
 2. Seed some plans: `php artisan subscription:seed-plans`
-3. Visit `/login` to test the authentication
-4. Visit `/subscription/plans` to see the subscription interface
+3. Visit `/login` to test authentication
+4. Visit `/subscription/plans` to test the subscription system
+5. Visit `/subscription/dashboard` to test the subscription dashboard
