@@ -577,7 +577,7 @@ new Ziggy)->toArray(),
 
         // Install dependencies
         $this->info('Running npm install...');
-        $process = $this->runCommand('npm install');
+        $process = $this->executeShellCommand('npm install');
 
         if ($process['success']) {
             $this->info('✓ NPM dependencies installed successfully');
@@ -585,7 +585,7 @@ new Ziggy)->toArray(),
             // Optionally run npm run build
             if ($this->confirm('Would you like to build the assets now?', true)) {
                 $this->info('Building assets...');
-                $buildProcess = $this->runCommand('npm run build');
+                $buildProcess = $this->executeShellCommand('npm run build');
 
                 if ($buildProcess['success']) {
                     $this->info('✓ Assets built successfully');
@@ -605,14 +605,14 @@ new Ziggy)->toArray(),
      */
     protected function isCommandAvailable(string $command): bool
     {
-        $process = $this->runCommand("which {$command}");
+        $process = $this->executeShellCommand("which {$command}");
         return $process['success'];
     }
 
     /**
-     * Run a shell command.
+     * Execute a shell command.
      */
-    protected function runCommand(string $command): array
+    protected function executeShellCommand(string $command): array
     {
         $descriptorspec = [
             0 => ['pipe', 'r'],  // stdin
