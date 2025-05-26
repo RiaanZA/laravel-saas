@@ -14,15 +14,45 @@ This command will:
 - **Setup Inertia.js infrastructure**: Creates `app.blade.php` layout and Inertia middleware
 - **Publish all frontend components**: Vue 3 pages and components for authentication and subscriptions
 - **Configure frontend**: Creates/updates `app.js` with standard Inertia page resolution
-- **Setup build tools**: Publishes `package.json`, `vite.config.js`, `tailwind.config.js`, etc.
+- **Setup build tools**: Publishes/merges `package.json`, `vite.config.js`, `tailwind.config.js`, etc.
+- **Install dependencies**: Automatically runs `npm install` and optionally builds assets
 - **Update User model**: Adds subscription traits to your User model
 - **Publish configuration**: Package configuration files
 
-Then build your frontend assets:
+### Command Options
 
 ```bash
-npm install && npm run build
+# Standard installation (includes NPM install)
+php artisan subscription:install-auth
+
+# Skip NPM installation (manual setup)
+php artisan subscription:install-auth --skip-npm
+
+# Force overwrite existing files
+php artisan subscription:install-auth --force
 ```
+
+## Automatic Dependency Management
+
+The install command automatically handles all required dependencies:
+
+### NPM Dependencies Installed
+- **Vue 3**: Frontend framework
+- **Inertia.js**: SPA-like experience with server-side routing
+- **Vite**: Modern build tool
+- **Tailwind CSS**: Utility-first CSS framework
+- **Ziggy**: Laravel route helper for JavaScript
+- **All required plugins**: Vue plugin for Vite, Tailwind plugins, etc.
+
+### Smart Package.json Handling
+- **New projects**: Creates complete `package.json` with all dependencies
+- **Existing projects**: Merges dependencies into existing `package.json`
+- **No conflicts**: Preserves existing scripts and configuration
+
+### Build Process
+- Automatically runs `npm install`
+- Optionally builds assets with `npm run build`
+- Handles errors gracefully with helpful messages
 
 ## Manual Setup
 
@@ -237,6 +267,25 @@ If you see an error like "Unable to locate file in Vite manifest: resources/js/P
 php artisan subscription:install-auth --force
 npm run build
 ```
+
+### NPM installation failed
+
+If NPM installation fails during the install command:
+
+```bash
+# Skip NPM and install manually
+php artisan subscription:install-auth --skip-npm
+npm install
+npm run build
+```
+
+### Node.js/NPM not available
+
+If you see "NPM is not available":
+
+1. Install Node.js from [nodejs.org](https://nodejs.org/)
+2. Verify installation: `node --version && npm --version`
+3. Re-run the install command
 
 ### Styling issues
 

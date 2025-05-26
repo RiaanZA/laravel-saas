@@ -12,7 +12,8 @@ class InstallAuthCommand extends Command
      * The name and signature of the console command.
      */
     protected $signature = 'subscription:install-auth
-                            {--force : Overwrite existing files}';
+                            {--force : Overwrite existing files}
+                            {--skip-npm : Skip NPM dependency installation}';
 
     /**
      * The console command description.
@@ -61,14 +62,25 @@ class InstallAuthCommand extends Command
         // Publish frontend configuration files
         $this->publishFrontendConfig();
 
+        // Install NPM dependencies
+        if (!$this->option('skip-npm')) {
+            $this->installNpmDependencies();
+        } else {
+            $this->info('Skipping NPM installation. Run "npm install && npm run build" manually.');
+        }
+
         $this->info('');
         $this->info('Frontend scaffolding installed successfully!');
         $this->info('');
         $this->info('Next steps:');
-        $this->info('1. Run: npm install && npm run build');
-        $this->info('2. Run: php artisan migrate');
-        $this->info('3. Visit /login to test authentication');
-        $this->info('4. Visit /subscription/plans to test subscription system');
+        if ($this->option('skip-npm')) {
+            $this->info('1. Run: npm install && npm run build');
+            $this->info('2. Run: php artisan migrate');
+        } else {
+            $this->info('1. Run: php artisan migrate');
+        }
+        $this->info('2. Visit /login to test authentication');
+        $this->info('3. Visit /subscription/plans to test subscription system');
         $this->info('');
 
         return 0;
@@ -456,8 +468,8 @@ new Ziggy)->toArray(),
 
         $stubsPath = __DIR__ . '/../../../stubs';
 
-        // Publish package.json if it doesn't exist
-        $this->publishStubFile($stubsPath . '/package.json', base_path('package.json'), 'package.json');
+        // Handle package.json - merge dependencies if exists, create if not
+        $this->handlePackageJson($stubsPath . '/package.json');
 
         // Publish vite.config.js if it doesn't exist
         $this->publishStubFile($stubsPath . '/vite.config.js', base_path('vite.config.js'), 'vite.config.js');
@@ -486,6 +498,153 @@ new Ziggy)->toArray(),
         } else {
             $this->info("✓ {$name} already exists");
         }
+    }
+
+    /**
+     * Handle package.json - merge dependencies or create new.
+     */
+    protected function handlePackageJson(string $stubPath): void
+    {
+        $packageJsonPath = base_path('package.json');
+
+        if (!$this->files->exists($stubPath)) {
+            $this->warn('package.json stub not found');
+            return;
+        }
+
+        $stubContent = json_decode($this->files->get($stubPath), true);
+
+        if ($this->files->exists($packageJsonPath) && !$this->option('force')) {
+            // Merge with existing package.json
+            $existingContent = json_decode($this->files->get($packageJsonPath), true);
+
+            // Merge dependencies
+            if (isset($stubContent['dependencies'])) {
+                $existingContent['dependencies'] = array_merge(
+                    $existingContent['dependencies'] ?? [],
+                    $stubContent['dependencies']
+                );
+            }
+
+            // Merge devDependencies
+            if (isset($stubContent['devDependencies'])) {
+                $existingContent['devDependencies'] = array_merge(
+                    $existingContent['devDependencies'] ?? [],
+                    $stubContent['devDependencies']
+                );
+            }
+
+            // Merge scripts
+            if (isset($stubContent['scripts'])) {
+                $existingContent['scripts'] = array_merge(
+                    $existingContent['scripts'] ?? [],
+                    $stubContent['scripts']
+                );
+            }
+
+            // Set type if not exists
+            if (isset($stubContent['type']) && !isset($existingContent['type'])) {
+                $existingContent['type'] = $stubContent['type'];
+            }
+
+            $this->files->put($packageJsonPath, json_encode($existingContent, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $this->info('✓ Merged dependencies into existing package.json');
+        } else {
+            // Create new package.json
+            $this->files->copy($stubPath, $packageJsonPath);
+            $this->info('✓ Published package.json');
+        }
+    }
+
+    /**
+     * Install NPM dependencies.
+     */
+    protected function installNpmDependencies(): void
+    {
+        $this->info('Installing NPM dependencies...');
+
+        // Check if npm is available
+        if (!$this->isCommandAvailable('npm')) {
+            $this->warn('NPM is not available. Please install Node.js and NPM, then run: npm install');
+            return;
+        }
+
+        // Check if package.json exists
+        if (!$this->files->exists(base_path('package.json'))) {
+            $this->warn('package.json not found. Please ensure frontend configuration was published.');
+            return;
+        }
+
+        // Install dependencies
+        $this->info('Running npm install...');
+        $process = $this->runCommand('npm install');
+
+        if ($process['success']) {
+            $this->info('✓ NPM dependencies installed successfully');
+
+            // Optionally run npm run build
+            if ($this->confirm('Would you like to build the assets now?', true)) {
+                $this->info('Building assets...');
+                $buildProcess = $this->runCommand('npm run build');
+
+                if ($buildProcess['success']) {
+                    $this->info('✓ Assets built successfully');
+                } else {
+                    $this->warn('Asset build failed. You can run "npm run build" manually later.');
+                    $this->line('Error: ' . $buildProcess['output']);
+                }
+            }
+        } else {
+            $this->warn('NPM install failed. Please run "npm install" manually.');
+            $this->line('Error: ' . $process['output']);
+        }
+    }
+
+    /**
+     * Check if a command is available.
+     */
+    protected function isCommandAvailable(string $command): bool
+    {
+        $process = $this->runCommand("which {$command}");
+        return $process['success'];
+    }
+
+    /**
+     * Run a shell command.
+     */
+    protected function runCommand(string $command): array
+    {
+        $descriptorspec = [
+            0 => ['pipe', 'r'],  // stdin
+            1 => ['pipe', 'w'],  // stdout
+            2 => ['pipe', 'w'],  // stderr
+        ];
+
+        $process = proc_open($command, $descriptorspec, $pipes, base_path());
+
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+
+            $output = stream_get_contents($pipes[1]);
+            $error = stream_get_contents($pipes[2]);
+
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+
+            $returnCode = proc_close($process);
+
+            return [
+                'success' => $returnCode === 0,
+                'output' => $output ?: $error,
+                'return_code' => $returnCode,
+            ];
+        }
+
+        return [
+            'success' => false,
+            'output' => 'Failed to execute command',
+            'return_code' => -1,
+        ];
     }
 
     /**
