@@ -23,7 +23,7 @@
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.0",
         "inertiajs/inertia-laravel": "^2.0",
-        "peachpayments/laravel-subscription": "dev-master"
+        "peachpayments/laravel-subscriptions": "dev-master"
     },
     "require-dev": {
         "orchestra/testbench": "^10.0",
