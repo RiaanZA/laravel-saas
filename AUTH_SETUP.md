@@ -11,10 +11,18 @@ php artisan subscription:install-auth
 ```
 
 This command will:
-- Publish authentication Vue components and pages
-- Update your `app.js` to include auth page resolution
-- Add subscription traits to your User model
-- Publish the package configuration
+- **Setup Inertia.js infrastructure**: Creates `app.blade.php` layout and Inertia middleware
+- **Publish authentication components**: Vue 3 authentication pages and components
+- **Configure frontend**: Updates `app.js` to include auth page resolution
+- **Setup build tools**: Publishes `package.json`, `vite.config.js`, `tailwind.config.js`, etc.
+- **Update User model**: Adds subscription traits to your User model
+- **Publish configuration**: Package configuration files
+
+Then build your frontend assets:
+
+```bash
+npm install && npm run build
+```
 
 ## Manual Setup
 
@@ -41,7 +49,7 @@ use RiaanZA\LaravelSubscription\Traits\HasSubscriptions;
 class User extends Authenticatable
 {
     use HasSubscriptions;
-    
+
     // ... rest of your User model
 }
 ```
@@ -68,7 +76,7 @@ createInertiaApp({
         return authPages[authPagePath]();
       }
     }
-    
+
     // Default page resolution
     return resolvePageComponent(`./Pages/${name}.vue`, import.meta.glob('./Pages/**/*.vue'));
   },
@@ -95,7 +103,7 @@ The authentication system provides the following routes:
 
 - `GET /login` - Login form
 - `POST /login` - Process login
-- `GET /register` - Registration form  
+- `GET /register` - Registration form
 - `POST /register` - Process registration
 - `GET /forgot-password` - Forgot password form
 - `POST /forgot-password` - Send reset link
