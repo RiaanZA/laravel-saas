@@ -63,6 +63,11 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
             __DIR__.'/../resources/views' => resource_path('views/vendor/laravel-subscription'),
         ], 'laravel-subscription-assets');
 
+        // Publish stubs
+        $this->publishes([
+            __DIR__.'/../stubs' => base_path('stubs/laravel-subscription'),
+        ], 'laravel-subscription-stubs');
+
         // Load migrations
         $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
 
