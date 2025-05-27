@@ -136,6 +136,29 @@ class SubscriptionController extends Controller
         $this->authorize('subscribe', $plan);
 
         try {
+            // Update user information if customer data is provided
+            if ($request->has('customer')) {
+                $customerData = $request->input('customer');
+                $updateData = [];
+
+                // Only update fields that exist in the user model
+                $userFillable = $user->getFillable();
+
+                if (!empty($customerData['first_name']) && in_array('first_name', $userFillable)) {
+                    $updateData['first_name'] = $customerData['first_name'];
+                }
+                if (!empty($customerData['last_name']) && in_array('last_name', $userFillable)) {
+                    $updateData['last_name'] = $customerData['last_name'];
+                }
+                if (!empty($customerData['email']) && $customerData['email'] !== $user->email && in_array('email', $userFillable)) {
+                    $updateData['email'] = $customerData['email'];
+                }
+
+                if (!empty($updateData)) {
+                    $user->update($updateData);
+                }
+            }
+
             $subscription = $this->subscriptionService->createSubscription(
                 $user,
                 $plan,

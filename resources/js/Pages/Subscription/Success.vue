@@ -11,48 +11,64 @@
 
         <!-- Success Message -->
         <h1 class="text-3xl font-bold text-gray-900 mb-4">
-          {{ subscription.on_trial ? 'Trial Started!' : 'Welcome Aboard!' }}
+          {{ subscription ? (subscription.on_trial ? 'Trial Started!' : 'Welcome Aboard!') : 'Success!' }}
         </h1>
-        
+
         <p class="text-lg text-gray-600 mb-8">
-          {{ subscription.on_trial 
-            ? `Your ${subscription.trial_days_remaining}-day trial has started successfully.`
-            : `Your subscription to ${subscription.plan_name} is now active.`
+          {{ message || (subscription ?
+            (subscription.on_trial
+              ? `Your ${subscription.trial_days_remaining}-day trial has started successfully.`
+              : `Your subscription to ${subscription.plan_name} is now active.`)
+            : 'Your request has been processed successfully.')
           }}
         </p>
 
+        <!-- Error Message (if any) -->
+        <div v-if="error" class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-yellow-700">{{ error }}</p>
+            </div>
+          </div>
+        </div>
+
         <!-- Subscription Details -->
-        <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8">
+        <div v-if="subscription" class="bg-white rounded-lg shadow-md border border-gray-200 p-6 mb-8">
           <h2 class="text-lg font-semibold text-gray-900 mb-4">Subscription Details</h2>
-          
+
           <div class="space-y-3 text-sm">
             <div class="flex justify-between">
               <span class="text-gray-600">Plan:</span>
               <span class="font-medium text-gray-900">{{ subscription.plan_name }}</span>
             </div>
-            
+
             <div class="flex justify-between">
               <span class="text-gray-600">Status:</span>
-              <span 
+              <span
                 class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium"
                 :class="subscription.on_trial ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'"
               >
                 {{ subscription.status }}
               </span>
             </div>
-            
+
             <div v-if="subscription.on_trial" class="flex justify-between">
               <span class="text-gray-600">Trial ends:</span>
               <span class="font-medium text-gray-900">
                 {{ subscription.trial_days_remaining }} days remaining
               </span>
             </div>
-            
+
             <div class="flex justify-between">
               <span class="text-gray-600">Next billing:</span>
               <span class="font-medium text-gray-900">{{ subscription.next_billing_date }}</span>
             </div>
-            
+
             <div v-if="!subscription.on_trial" class="flex justify-between">
               <span class="text-gray-600">Amount:</span>
               <span class="font-medium text-gray-900">{{ subscription.amount }}</span>
@@ -99,7 +115,7 @@
           >
             Go to Dashboard
           </button>
-          
+
           <button
             @click="goToApp"
             class="w-full bg-white text-gray-700 py-3 px-4 rounded-md border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-colors duration-200 font-medium"
@@ -111,7 +127,7 @@
         <!-- Support -->
         <div class="mt-8 text-center">
           <p class="text-sm text-gray-600">
-            Need help getting started? 
+            Need help getting started?
             <a href="#" class="text-blue-600 hover:text-blue-700 font-medium">
               Contact our support team
             </a>
@@ -123,19 +139,33 @@
 </template>
 
 <script setup>
+import { router } from '@inertiajs/vue3'
+
 const props = defineProps({
   subscription: {
     type: Object,
-    required: true
+    default: null
+  },
+  message: {
+    type: String,
+    default: null
+  },
+  error: {
+    type: String,
+    default: null
+  },
+  subscriptionId: {
+    type: [String, Number],
+    default: null
   }
 })
 
 const goToDashboard = () => {
-  window.location.href = '/subscription/dashboard'
+  router.visit(route('subscription.dashboard'))
 }
 
 const goToApp = () => {
   // Redirect to main application dashboard
-  window.location.href = '/dashboard'
+  router.visit('/dashboard')
 }
 </script>
