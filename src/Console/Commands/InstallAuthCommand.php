@@ -498,7 +498,7 @@ new Ziggy)->toArray(),
      */
     protected function getAppCssContent(): string
     {
-        return '@tailwind base;\n@tailwind components;\n@tailwind utilities;\n';
+        return '@import "tailwindcss";';
     }
 
     /**
