@@ -16,7 +16,7 @@ use RiaanZA\LaravelSubscription\Http\Controllers\Auth\EmailVerificationControlle
 |
 */
 
-Route::middleware('guest')->group(function () {
+Route::middleware(['web', 'guest'])->group(function () {
     // Login Routes
     Route::get('login', [LoginController::class, 'create'])
         ->name('login');
@@ -43,7 +43,7 @@ Route::middleware('guest')->group(function () {
         ->name('password.store');
 });
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['web', 'auth'])->group(function () {
     // Email Verification Routes
     Route::get('verify-email', [EmailVerificationController::class, 'notice'])
         ->name('verification.notice');
