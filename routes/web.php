@@ -17,7 +17,7 @@ use RiaanZA\LaravelSubscription\Http\Controllers\WebhookController;
 
 $routeConfig = config('laravel-subscription.routes');
 $prefix = $routeConfig['prefix'] ?? 'subscription';
-$middleware = $routeConfig['middleware'] ?? ['web', 'auth'];
+$middleware = $routeConfig['middleware'] ?? ['web', 'auth:web'];
 
 Route::prefix($prefix)->middleware($middleware)->group(function () {
 
