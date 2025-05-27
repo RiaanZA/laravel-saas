@@ -11,7 +11,7 @@
         <!-- Order Summary -->
         <div class="bg-white rounded-lg shadow-md border border-gray-200 p-6 h-fit">
           <h2 class="text-xl font-semibold text-gray-900 mb-6">Order Summary</h2>
-          
+
           <!-- Plan Details -->
           <div class="border border-gray-200 rounded-lg p-4 mb-6">
             <div class="flex items-center justify-between mb-4">
@@ -24,9 +24,9 @@
                 <p class="text-sm text-gray-500">/{{ plan.billing_cycle }}</p>
               </div>
             </div>
-            
+
             <p class="text-sm text-gray-600 mb-4">{{ plan.description }}</p>
-            
+
             <!-- Trial Information -->
             <div v-if="plan.has_trial_period && startTrial" class="bg-green-50 border border-green-200 rounded-lg p-3">
               <div class="flex items-center">
@@ -45,8 +45,8 @@
           <div class="mb-6">
             <h4 class="text-sm font-semibold text-gray-900 mb-3">What's included:</h4>
             <ul class="space-y-2">
-              <li 
-                v-for="feature in plan.features" 
+              <li
+                v-for="feature in plan.features"
                 :key="feature.name"
                 class="flex items-center text-sm text-gray-600"
               >
@@ -111,7 +111,7 @@
               <!-- Customer Information -->
               <div>
                 <h3 class="text-lg font-medium text-gray-900 mb-4">Account Information</h3>
-                
+
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -157,9 +157,9 @@
                     class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mt-0.5"
                   />
                   <span class="ml-3 text-sm text-gray-700">
-                    I agree to the 
-                    <a href="#" class="text-blue-600 hover:text-blue-700">Terms of Service</a> 
-                    and 
+                    I agree to the
+                    <a href="#" class="text-blue-600 hover:text-blue-700">Terms of Service</a>
+                    and
                     <a href="#" class="text-blue-600 hover:text-blue-700">Privacy Policy</a>
                   </span>
                 </label>
@@ -184,13 +184,35 @@
         </div>
       </div>
     </div>
+
+    <!-- Error Notification -->
+    <ErrorNotification
+      :show="showError"
+      :title="'Subscription Error'"
+      :message="getErrorMessage()"
+      :errors="getErrorList()"
+      @close="clearError"
+    />
+
+    <!-- Success Notification -->
+    <SuccessNotification
+      :show="showSuccess"
+      :title="'Success'"
+      :message="successMessage"
+      @close="clearSuccess"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref, reactive } from 'vue'
+import { router } from '@inertiajs/vue3'
 import PaymentForm from '../../Components/Subscription/PaymentForm.vue'
 import LoadingSpinner from '../../Components/UI/LoadingSpinner.vue'
+import ErrorNotification from '../../Components/UI/ErrorNotification.vue'
+import SuccessNotification from '../../Components/UI/SuccessNotification.vue'
+import { useErrorHandling } from '../../composables/useErrorHandling.js'
+import { useSuccessHandling } from '../../composables/useSuccessHandling.js'
 
 const props = defineProps({
   plan: {
@@ -211,6 +233,10 @@ const loading = ref(false)
 const startTrial = ref(props.plan.has_trial_period)
 const acceptTerms = ref(false)
 
+// Error and success handling
+const { showError, handleInertiaError, clearError, getErrorMessage, getErrorList } = useErrorHandling()
+const { successMessage, showSuccess, handleSuccess, clearSuccess } = useSuccessHandling()
+
 const trialForm = reactive({
   first_name: props.user.first_name || '',
   last_name: props.user.last_name || '',
@@ -224,45 +250,119 @@ const submitForm = () => {
 }
 
 const handleTrialSubmit = () => {
+  // Clear any previous errors
+  clearError()
+  clearSuccess()
+
+  // Validation
   if (!acceptTerms.value) {
-    alert('Please accept the terms and conditions')
+    handleInertiaError('Please accept the terms and conditions to continue.')
+    return
+  }
+
+  // Validate required fields
+  if (!trialForm.first_name.trim()) {
+    handleInertiaError('First name is required.')
+    return
+  }
+
+  if (!trialForm.last_name.trim()) {
+    handleInertiaError('Last name is required.')
+    return
+  }
+
+  if (!trialForm.email.trim()) {
+    handleInertiaError('Email address is required.')
+    return
+  }
+
+  // Basic email validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  if (!emailRegex.test(trialForm.email)) {
+    handleInertiaError('Please enter a valid email address.')
     return
   }
 
   loading.value = true
-  
+
   const data = {
-    plan_id: props.plan.id,
+    plan_slug: props.plan.slug,
     start_trial: true,
-    customer: trialForm
+    customer: {
+      first_name: trialForm.first_name.trim(),
+      last_name: trialForm.last_name.trim(),
+      email: trialForm.email.trim()
+    }
   }
 
-  console.log('Starting trial with data:', data)
-  
-  // Simulate API call
-  setTimeout(() => {
-    loading.value = false
-    // Redirect to success page
-    window.location.href = '/subscription/success'
-  }, 2000)
+  // Make actual API call to create subscription
+  router.post(route('subscription.store'), data, {
+    onSuccess: (response) => {
+      handleSuccess('Trial started successfully! Redirecting to your dashboard...')
+
+      // Delay redirect to show success message
+      setTimeout(() => {
+        router.visit(route('subscription.dashboard'))
+      }, 1500)
+    },
+    onError: (errors) => {
+      console.error('Trial creation failed:', errors)
+      handleInertiaError(errors, 'Failed to start trial. Please try again.')
+    },
+    onFinish: () => {
+      loading.value = false
+    }
+  })
 }
 
 const handlePaymentSubmit = (paymentData) => {
-  loading.value = true
-  
-  const data = {
-    plan_id: props.plan.id,
-    start_trial: false,
-    ...paymentData
+  // Clear any previous errors
+  clearError()
+  clearSuccess()
+
+  // Validate payment data
+  if (!paymentData || typeof paymentData !== 'object') {
+    handleInertiaError('Invalid payment information. Please try again.')
+    return
   }
 
-  console.log('Processing payment with data:', data)
-  
-  // Simulate API call
-  setTimeout(() => {
-    loading.value = false
-    // Redirect to success page
-    window.location.href = '/subscription/success'
-  }, 3000)
+  loading.value = true
+
+  const data = {
+    plan_slug: props.plan.slug,
+    start_trial: false,
+    payment_data: paymentData
+  }
+
+  // Make actual API call to process payment
+  router.post(route('subscription.payment.process'), data, {
+    onSuccess: (response) => {
+      // Handle successful payment response
+      if (response.payment_url) {
+        handleSuccess('Redirecting to payment gateway...')
+        // Small delay to show success message before redirect
+        setTimeout(() => {
+          window.location.href = response.payment_url
+        }, 1000)
+      } else if (response.redirect_url) {
+        handleSuccess('Payment processed successfully! Redirecting...')
+        setTimeout(() => {
+          router.visit(response.redirect_url)
+        }, 1500)
+      } else {
+        handleSuccess('Payment processed successfully! Redirecting to dashboard...')
+        setTimeout(() => {
+          router.visit(route('subscription.dashboard'))
+        }, 1500)
+      }
+    },
+    onError: (errors) => {
+      console.error('Payment processing failed:', errors)
+      handleInertiaError(errors, 'Payment processing failed. Please check your payment details and try again.')
+    },
+    onFinish: () => {
+      loading.value = false
+    }
+  })
 }
 </script>

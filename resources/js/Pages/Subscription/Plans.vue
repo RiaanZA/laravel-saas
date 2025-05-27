@@ -22,12 +22,24 @@
         />
       </div>
     </div>
+
+    <!-- Error Notification -->
+    <ErrorNotification
+      :show="showError"
+      :title="'Plan Selection Error'"
+      :message="getErrorMessage()"
+      :errors="getErrorList()"
+      @close="clearError"
+    />
   </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { router } from '@inertiajs/vue3'
 import PlanCard from '../../Components/Subscription/PlanCard.vue'
+import ErrorNotification from '../../Components/UI/ErrorNotification.vue'
+import { useErrorHandling } from '../../composables/useErrorHandling.js'
 
 const props = defineProps({
   plans: {
@@ -37,18 +49,39 @@ const props = defineProps({
 })
 
 const loadingPlanId = ref(null)
+const { showError, handleInertiaError, clearError, getErrorMessage, getErrorList } = useErrorHandling()
 
 const selectPlan = (plan) => {
   if (loadingPlanId.value) return
-  
+
+  // Validate plan data
+  if (!plan || !plan.slug) {
+    handleInertiaError('Invalid plan selected. Please try again.')
+    return
+  }
+
   loadingPlanId.value = plan.id
-  
-  // Handle plan selection - redirect to checkout or subscription creation
-  console.log('Selected plan:', plan)
-  
-  // Reset loading state after a delay (replace with actual navigation)
-  setTimeout(() => {
-    loadingPlanId.value = null
-  }, 2000)
+  clearError() // Clear any previous errors
+
+  // Navigate to checkout page for the selected plan
+  router.visit(route('subscription.checkout', { planSlug: plan.slug }), {
+    onFinish: () => {
+      loadingPlanId.value = null
+    },
+    onError: (errors) => {
+      loadingPlanId.value = null
+
+      // Handle different types of errors
+      if (errors.message) {
+        handleInertiaError(errors.message)
+      } else if (errors.error) {
+        handleInertiaError(errors.error)
+      } else if (typeof errors === 'object' && Object.keys(errors).length > 0) {
+        handleInertiaError(errors, 'Failed to navigate to checkout. Please try again.')
+      } else {
+        handleInertiaError('Unable to proceed to checkout. Please check your internet connection and try again.')
+      }
+    }
+  })
 }
 </script>
