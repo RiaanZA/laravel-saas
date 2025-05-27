@@ -117,6 +117,13 @@ class InstallAuthCommand extends Command
         }
         $this->copyDirectory($sourcePath . '/components', $lowercaseComponentsDestination);
 
+        // Copy composables directory
+        $composablesDestination = resource_path('js/composables');
+        if (!$this->files->isDirectory($composablesDestination)) {
+            $this->files->makeDirectory($composablesDestination, 0755, true);
+        }
+        $this->copyDirectory($sourcePath . '/composables', $composablesDestination);
+
         // Copy any additional JS files (like subscription.js)
         $additionalFiles = ['subscription.js'];
         foreach ($additionalFiles as $file) {
