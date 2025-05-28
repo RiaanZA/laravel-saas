@@ -9,13 +9,13 @@ use Inertia\Inertia;
 use Inertia\Response;
 use RiaanZA\LaravelSubscription\Models\SubscriptionPlan;
 use RiaanZA\LaravelSubscription\Models\UserSubscription;
-use RiaanZA\LaravelSubscription\Services\PaymentService;
+use RiaanZA\LaravelSubscription\Services\PeachPaymentsService;
 use RiaanZA\LaravelSubscription\Http\Requests\ProcessPaymentRequest;
 
 class PaymentController extends Controller
 {
     public function __construct(
-        protected PaymentService $paymentService
+        protected PeachPaymentsService $paymentService
     ) {}
 
     /**
@@ -29,7 +29,7 @@ class PaymentController extends Controller
             ->firstOrFail();
 
         $user = $request->user();
-        
+
         // Check if user already has an active subscription
         $existingSubscription = $user->subscriptions()
             ->whereIn('status', ['active', 'trial'])
@@ -122,7 +122,7 @@ class PaymentController extends Controller
         if ($paymentId && $subscriptionId) {
             try {
                 $this->paymentService->handleSuccessfulPayment($paymentId, $subscriptionId);
-                
+
                 return Inertia::render('Subscription/Success', [
                     'message' => 'Payment successful! Your subscription is now active.',
                     'subscription_id' => $subscriptionId,
@@ -157,7 +157,7 @@ class PaymentController extends Controller
     public function failed(Request $request): Response
     {
         $error = $request->get('error', 'Payment failed. Please try again.');
-        
+
         return Inertia::render('Subscription/Failed', [
             'message' => 'Payment failed. Please check your payment details and try again.',
             'error' => $error,
@@ -171,10 +171,10 @@ class PaymentController extends Controller
     public function paymentMethods(Request $request): JsonResponse
     {
         $user = $request->user();
-        
+
         try {
             $paymentMethods = $this->paymentService->getUserPaymentMethods($user);
-            
+
             return response()->json([
                 'payment_methods' => $paymentMethods,
             ]);
@@ -196,13 +196,13 @@ class PaymentController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         try {
             $paymentMethod = $this->paymentService->addPaymentMethod(
                 $user,
                 $request->payment_method_data
             );
-            
+
             return response()->json([
                 'message' => 'Payment method added successfully',
                 'payment_method' => $paymentMethod,
@@ -221,10 +221,10 @@ class PaymentController extends Controller
     public function removePaymentMethod(Request $request, string $paymentMethodId): JsonResponse
     {
         $user = $request->user();
-        
+
         try {
             $this->paymentService->removePaymentMethod($user, $paymentMethodId);
-            
+
             return response()->json([
                 'message' => 'Payment method removed successfully',
             ]);
@@ -246,13 +246,13 @@ class PaymentController extends Controller
         ]);
 
         $user = $request->user();
-        
+
         try {
             $this->paymentService->updateDefaultPaymentMethod(
                 $user,
                 $request->payment_method_id
             );
-            
+
             return response()->json([
                 'message' => 'Default payment method updated successfully',
             ]);

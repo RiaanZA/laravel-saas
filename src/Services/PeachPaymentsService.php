@@ -5,21 +5,45 @@ namespace RiaanZA\LaravelSubscription\Services;
 use Illuminate\Database\Eloquent\Model;
 use RiaanZA\LaravelSubscription\Models\SubscriptionPlan;
 use RiaanZA\LaravelSubscription\Models\UserSubscription;
-use RiaanZA\PeachPayments\PeachPayments;
 use Exception;
 use Illuminate\Support\Facades\Log;
 
-class PaymentService
+class PeachPaymentsService
 {
-    protected PeachPayments $peachPayments;
+    protected ?object $peachPayments = null;
     protected SubscriptionService $subscriptionService;
 
-    public function __construct(
-        PeachPayments $peachPayments,
-        SubscriptionService $subscriptionService
-    ) {
-        $this->peachPayments = $peachPayments;
+    public function __construct(SubscriptionService $subscriptionService)
+    {
         $this->subscriptionService = $subscriptionService;
+        $this->initializePeachPayments();
+    }
+
+    /**
+     * Initialize Peach Payments client.
+     */
+    protected function initializePeachPayments(): void
+    {
+        // Check if the external PeachPayments class exists
+        if (class_exists('\RiaanZA\PeachPayments\PeachPayments')) {
+            try {
+                $this->peachPayments = app('\RiaanZA\PeachPayments\PeachPayments');
+            } catch (Exception $e) {
+                Log::warning('Failed to initialize PeachPayments client', [
+                    'error' => $e->getMessage(),
+                ]);
+            }
+        } else {
+            Log::warning('PeachPayments package not found. Payment processing will be disabled.');
+        }
+    }
+
+    /**
+     * Check if Peach Payments is available.
+     */
+    public function isAvailable(): bool
+    {
+        return $this->peachPayments !== null;
     }
 
     /**
@@ -30,24 +54,28 @@ class PaymentService
         SubscriptionPlan $plan,
         array $paymentData
     ): array {
+        if (!$this->isAvailable()) {
+            throw new Exception('Peach Payments is not available. Please install the peachpayments/laravel-subscriptions package.');
+        }
+
+        // Create subscription first (in pending state)
+        $subscription = $this->subscriptionService->createSubscription(
+            $user,
+            $plan,
+            $paymentData,
+            $paymentData['start_trial'] ?? false
+        );
+
+        // If starting with trial, no payment needed
+        if ($subscription->status === 'trial') {
+            return [
+                'subscription_id' => $subscription->id,
+                'status' => 'trial_started',
+                'redirect_url' => route('subscription.dashboard'),
+            ];
+        }
+
         try {
-            // Create subscription first (in pending state)
-            $subscription = $this->subscriptionService->createSubscription(
-                $user,
-                $plan,
-                $paymentData,
-                $paymentData['start_trial'] ?? false
-            );
-
-            // If starting with trial, no payment needed
-            if ($subscription->status === 'trial') {
-                return [
-                    'subscription_id' => $subscription->id,
-                    'status' => 'trial_started',
-                    'redirect_url' => route('subscription.dashboard'),
-                ];
-            }
-
             // Process payment with Peach Payments
             $paymentResult = $this->createPeachPayment($user, $plan, $paymentData, $subscription);
 
@@ -89,7 +117,7 @@ class PaymentService
         UserSubscription $subscription
     ): array {
         $customer = $this->getOrCreateCustomer($user, $paymentData);
-        
+
         $paymentMethodId = $this->getOrCreatePaymentMethod(
             $customer['id'],
             $paymentData
@@ -186,7 +214,7 @@ class PaymentService
         // This should map local plans to Peach plan IDs
         // You might store this in plan metadata or have a separate mapping
         $metadata = $plan->metadata ?? [];
-        
+
         if (isset($metadata['peach_plan_id'])) {
             return $metadata['peach_plan_id'];
         }
@@ -213,7 +241,7 @@ class PaymentService
         ];
 
         $peachPlan = $this->peachPayments->plans()->create($planData);
-        
+
         // Update local plan with Peach plan ID
         $metadata = $plan->metadata ?? [];
         $metadata['peach_plan_id'] = $peachPlan['id'];
@@ -223,35 +251,17 @@ class PaymentService
     }
 
     /**
-     * Map billing cycle to Peach interval.
+     * Map billing cycle to Peach Payments interval.
      */
     protected function mapBillingCycleToInterval(string $billingCycle): string
     {
         return match ($billingCycle) {
             'monthly' => 'month',
             'yearly' => 'year',
-            'quarterly' => 'quarter',
             'weekly' => 'week',
+            'daily' => 'day',
             default => 'month',
         };
-    }
-
-    /**
-     * Handle successful payment.
-     */
-    public function handleSuccessfulPayment(string $paymentId, string $subscriptionId): void
-    {
-        $subscription = UserSubscription::findOrFail($subscriptionId);
-        
-        // Update subscription status
-        $subscription->update([
-            'status' => 'active',
-        ]);
-
-        Log::info('Subscription activated after successful payment', [
-            'subscription_id' => $subscriptionId,
-            'payment_id' => $paymentId,
-        ]);
     }
 
     /**
@@ -259,6 +269,10 @@ class PaymentService
      */
     public function getUserPaymentMethods(Model $user): array
     {
+        if (!$this->isAvailable()) {
+            return [];
+        }
+
         try {
             $customer = $this->peachPayments->customers()->search([
                 'email' => $user->email,
@@ -281,7 +295,7 @@ class PaymentService
                 'error' => $e->getMessage(),
             ]);
 
-            throw new Exception('Failed to retrieve payment methods');
+            return [];
         }
     }
 
@@ -290,6 +304,10 @@ class PaymentService
      */
     public function addPaymentMethod(Model $user, array $paymentMethodData): array
     {
+        if (!$this->isAvailable()) {
+            throw new Exception('Peach Payments is not available');
+        }
+
         try {
             $customer = $this->getOrCreateCustomer($user, [
                 'billing_details' => ['name' => $user->name],
@@ -297,7 +315,7 @@ class PaymentService
             ]);
 
             $paymentMethodData['customer_id'] = $customer['id'];
-            
+
             return $this->peachPayments->paymentMethods()->create($paymentMethodData);
 
         } catch (Exception $e) {
@@ -315,9 +333,12 @@ class PaymentService
      */
     public function removePaymentMethod(Model $user, string $paymentMethodId): void
     {
+        if (!$this->isAvailable()) {
+            throw new Exception('Peach Payments is not available');
+        }
+
         try {
             $this->peachPayments->paymentMethods()->delete($paymentMethodId);
-
         } catch (Exception $e) {
             Log::error('Failed to remove payment method', [
                 'user_id' => $user->id,
@@ -334,6 +355,10 @@ class PaymentService
      */
     public function updateDefaultPaymentMethod(Model $user, string $paymentMethodId): void
     {
+        if (!$this->isAvailable()) {
+            throw new Exception('Peach Payments is not available');
+        }
+
         try {
             $customer = $this->peachPayments->customers()->search([
                 'email' => $user->email,
@@ -344,7 +369,7 @@ class PaymentService
             }
 
             $customerId = $customer['data'][0]['id'];
-            
+
             $this->peachPayments->customers()->update($customerId, [
                 'default_payment_method' => $paymentMethodId,
             ]);

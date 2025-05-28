@@ -32,9 +32,35 @@ class LaravelSubscriptionServiceProvider extends ServiceProvider
 
         // Bind services
         $this->app->bind(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class);
-        $this->app->bind(\RiaanZA\LaravelSubscription\Services\PaymentService::class);
         $this->app->bind(\RiaanZA\LaravelSubscription\Services\UsageService::class);
         $this->app->bind(\RiaanZA\LaravelSubscription\Services\FeatureService::class);
+        $this->app->bind(\RiaanZA\LaravelSubscription\Services\PeachPaymentsService::class);
+
+        // Bind PeachPayments class if available
+        $this->app->bind('RiaanZA\PeachPayments\PeachPayments', function ($app) {
+            if (class_exists('\RiaanZA\PeachPayments\PeachPayments')) {
+                return $app->make('\RiaanZA\PeachPayments\PeachPayments');
+            }
+
+            // Return a mock implementation if the class doesn't exist
+            return new class {
+                public function customers() {
+                    throw new \Exception('PeachPayments package not installed. Please install peachpayments/laravel-subscriptions.');
+                }
+
+                public function subscriptions() {
+                    throw new \Exception('PeachPayments package not installed. Please install peachpayments/laravel-subscriptions.');
+                }
+
+                public function plans() {
+                    throw new \Exception('PeachPayments package not installed. Please install peachpayments/laravel-subscriptions.');
+                }
+
+                public function paymentMethods() {
+                    throw new \Exception('PeachPayments package not installed. Please install peachpayments/laravel-subscriptions.');
+                }
+            };
+        });
 
         // Configure service dependencies
         $this->app->afterResolving(\RiaanZA\LaravelSubscription\Services\SubscriptionService::class, function ($subscriptionService, $app) {
