@@ -52,7 +52,7 @@ class SubscriptionUsage extends Model
     /**
      * Increment usage count.
      */
-    public function increment(int $amount = 1): bool
+    public function incrementUsageCount(int $amount = 1): bool
     {
         return $this->update(['usage_count' => $this->usage_count + $amount]);
     }
@@ -60,7 +60,7 @@ class SubscriptionUsage extends Model
     /**
      * Decrement usage count.
      */
-    public function decrement(int $amount = 1): bool
+    public function decrementUsageCount(int $amount = 1): bool
     {
         $newCount = max(0, $this->usage_count - $amount);
         return $this->update(['usage_count' => $newCount]);
