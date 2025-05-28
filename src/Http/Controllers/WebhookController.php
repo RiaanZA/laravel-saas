@@ -6,13 +6,13 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 use RiaanZA\LaravelSubscription\Models\UserSubscription;
-use RiaanZA\LaravelSubscription\Services\PaymentService;
+use RiaanZA\LaravelSubscription\Services\PeachPaymentsService;
 use RiaanZA\LaravelSubscription\Services\SubscriptionService;
 
 class WebhookController extends Controller
 {
     public function __construct(
-        protected PaymentService $paymentService,
+        protected PeachPaymentsService $paymentService,
         protected SubscriptionService $subscriptionService
     ) {}
 
@@ -28,13 +28,13 @@ class WebhookController extends Controller
                     'ip' => $request->ip(),
                     'headers' => $request->headers->all(),
                 ]);
-                
+
                 return response()->json(['error' => 'Invalid signature'], 401);
             }
 
             $payload = $request->all();
             $eventType = $payload['event_type'] ?? null;
-            
+
             Log::info('Peach Payments webhook received', [
                 'event_type' => $eventType,
                 'payload' => $payload,
@@ -43,31 +43,31 @@ class WebhookController extends Controller
             switch ($eventType) {
                 case 'subscription.created':
                     return $this->handleSubscriptionCreated($payload);
-                
+
                 case 'subscription.updated':
                     return $this->handleSubscriptionUpdated($payload);
-                
+
                 case 'subscription.cancelled':
                     return $this->handleSubscriptionCancelled($payload);
-                
+
                 case 'payment.succeeded':
                     return $this->handlePaymentSucceeded($payload);
-                
+
                 case 'payment.failed':
                     return $this->handlePaymentFailed($payload);
-                
+
                 case 'invoice.payment_succeeded':
                     return $this->handleInvoicePaymentSucceeded($payload);
-                
+
                 case 'invoice.payment_failed':
                     return $this->handleInvoicePaymentFailed($payload);
-                
+
                 default:
                     Log::info('Unhandled webhook event type', [
                         'event_type' => $eventType,
                         'payload' => $payload,
                     ]);
-                    
+
                     return response()->json(['message' => 'Event type not handled'], 200);
             }
 
@@ -351,7 +351,7 @@ class WebhookController extends Controller
         // This is a placeholder - you'll need to implement the actual verification
         $signature = $request->header('X-Peach-Signature');
         $payload = $request->getContent();
-        
+
         // For now, return true - implement actual verification based on Peach Payments docs
         return true;
     }

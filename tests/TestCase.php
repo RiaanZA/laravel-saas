@@ -88,7 +88,7 @@ class TestCase extends Orchestra
     protected function assertValidationErrors($response, array $fields): void
     {
         $response->assertStatus(422);
-        
+
         foreach ($fields as $field) {
             $response->assertJsonValidationErrors($field);
         }
@@ -145,7 +145,7 @@ class TestCase extends Orchestra
      */
     protected function mockPaymentService(): void
     {
-        $this->mock(\RiaanZA\LaravelSubscription\Services\PaymentService::class, function ($mock) {
+        $this->mock(\RiaanZA\LaravelSubscription\Services\PeachPaymentsService::class, function ($mock) {
             $mock->shouldReceive('createPaymentIntent')->andReturn(['id' => 'pi_test_123']);
             $mock->shouldReceive('confirmPayment')->andReturn(true);
             $mock->shouldReceive('refundPayment')->andReturn(true);
