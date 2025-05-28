@@ -80,6 +80,10 @@ Route::prefix($prefix)->middleware(['web'])->group(function () {
     // Public plan listing (for marketing pages)
     Route::get('/plans/public', [SubscriptionPlanController::class, 'index'])
         ->name('subscription.plans.public');
+
+    // Public subscription creation (for trial signups)
+    Route::post('/subscribe/public', [SubscriptionController::class, 'storePublic'])
+        ->name('subscription.store.public');
 });
 
 // Webhook routes (no authentication or CSRF protection)

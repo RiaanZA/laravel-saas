@@ -11,8 +11,12 @@ use RiaanZA\LaravelSubscription\Models\SubscriptionPlan;
 use RiaanZA\LaravelSubscription\Models\UserSubscription;
 use RiaanZA\LaravelSubscription\Services\SubscriptionService;
 use RiaanZA\LaravelSubscription\Http\Requests\CreateSubscriptionRequest;
+use RiaanZA\LaravelSubscription\Http\Requests\CreatePublicSubscriptionRequest;
 use RiaanZA\LaravelSubscription\Http\Requests\UpdateSubscriptionRequest;
 use RiaanZA\LaravelSubscription\Http\Requests\CancelSubscriptionRequest;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Auth\Events\Registered;
 
 class SubscriptionController extends Controller
 {
@@ -127,13 +131,64 @@ class SubscriptionController extends Controller
     {
         $user = $request->user();
 
-        // Check authorization to create subscriptions
-        $this->authorize('create', UserSubscription::class);
+        // Debug: Log user information
+        \Log::info('Subscription creation attempt', [
+            'user_id' => $user->id,
+            'user_email' => $user->email,
+            'plan_slug' => $request->plan_slug,
+            'start_trial' => $request->boolean('start_trial'),
+            'customer_data' => $request->input('customer'),
+        ]);
 
-        $plan = SubscriptionPlan::where('slug', $request->plan_slug)->firstOrFail();
+        // Check if user already has active subscription (debug)
+        $existingSubscription = $user->subscriptions()
+            ->whereIn('status', ['active', 'trial'])
+            ->first();
+
+        if ($existingSubscription) {
+            \Log::warning('User already has active subscription', [
+                'user_id' => $user->id,
+                'existing_subscription_id' => $existingSubscription->id,
+                'existing_status' => $existingSubscription->status,
+            ]);
+        }
+
+        // Check authorization to create subscriptions
+        try {
+            $this->authorize('create', UserSubscription::class);
+            \Log::info('Authorization passed for create subscription');
+        } catch (\Exception $e) {
+            \Log::error('Authorization failed for create subscription', [
+                'error' => $e->getMessage(),
+                'user_id' => $user->id,
+            ]);
+            throw $e;
+        }
+
+        $plan = SubscriptionPlan::where('slug', $request->plan_slug)->first();
+
+        if (!$plan) {
+            \Log::error('Plan not found', ['plan_slug' => $request->plan_slug]);
+            throw new \Exception('Plan not found');
+        }
+
+        if (!$plan->is_active) {
+            \Log::error('Plan is not active', ['plan_slug' => $request->plan_slug, 'plan_id' => $plan->id]);
+            throw new \Exception('Plan is not active');
+        }
 
         // Check authorization to subscribe to this specific plan
-        $this->authorize('subscribe', $plan);
+        try {
+            $this->authorize('subscribe', $plan);
+            \Log::info('Authorization passed for subscribe to plan', ['plan_id' => $plan->id]);
+        } catch (\Exception $e) {
+            \Log::error('Authorization failed for subscribe to plan', [
+                'error' => $e->getMessage(),
+                'plan_id' => $plan->id,
+                'user_id' => $user->id,
+            ]);
+            throw $e;
+        }
 
         try {
             // Update user information if customer data is provided
@@ -159,12 +214,24 @@ class SubscriptionController extends Controller
                 }
             }
 
+            \Log::info('Creating subscription', [
+                'user_id' => $user->id,
+                'plan_id' => $plan->id,
+                'start_trial' => $request->boolean('start_trial', false),
+            ]);
+
             $subscription = $this->subscriptionService->createSubscription(
                 $user,
                 $plan,
                 $request->payment_data ?? [],
                 $request->boolean('start_trial', false)
             );
+
+            \Log::info('Subscription created successfully', [
+                'subscription_id' => $subscription->id,
+                'status' => $subscription->status,
+                'user_id' => $user->id,
+            ]);
 
             if ($request->expectsJson()) {
                 return response()->json([
@@ -182,6 +249,13 @@ class SubscriptionController extends Controller
                 ->with('success', 'Subscription created successfully!');
 
         } catch (\Exception $e) {
+            \Log::error('Subscription creation failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'user_id' => $user->id,
+                'plan_slug' => $request->plan_slug,
+            ]);
+
             if ($request->expectsJson()) {
                 return response()->json([
                     'message' => 'Failed to create subscription',
@@ -192,6 +266,116 @@ class SubscriptionController extends Controller
             return redirect()
                 ->back()
                 ->withErrors(['subscription' => $e->getMessage()]);
+        }
+    }
+
+    /**
+     * Create a new subscription for unauthenticated users (public endpoint).
+     */
+    public function storePublic(CreatePublicSubscriptionRequest $request): JsonResponse|RedirectResponse
+    {
+        try {
+            $customerData = $request->input('customer');
+            $userModel = config('laravel-subscription.models.user', 'App\Models\User');
+
+            // Check if user already exists
+            $existingUser = $userModel::where('email', $customerData['email'])->first();
+
+            if ($existingUser) {
+                // If user exists, check if they have an active subscription
+                $existingSubscription = $existingUser->subscriptions()
+                    ->whereIn('status', ['active', 'trial'])
+                    ->exists();
+
+                if ($existingSubscription) {
+                    if ($request->expectsJson()) {
+                        return response()->json([
+                            'message' => 'User already has an active subscription',
+                            'error' => 'existing_subscription',
+                        ], 422);
+                    }
+
+                    return redirect()
+                        ->back()
+                        ->withErrors(['customer.email' => 'This email address already has an active subscription.']);
+                }
+
+                $user = $existingUser;
+            } else {
+                // Create new user
+                $userData = [
+                    'email' => $customerData['email'],
+                    'password' => Hash::make($customerData['password']),
+                ];
+
+                // Add name fields if they exist in the user model
+                $userFillable = (new $userModel)->getFillable();
+
+                if (in_array('first_name', $userFillable)) {
+                    $userData['first_name'] = $customerData['first_name'];
+                }
+                if (in_array('last_name', $userFillable)) {
+                    $userData['last_name'] = $customerData['last_name'];
+                }
+                if (in_array('name', $userFillable)) {
+                    $userData['name'] = trim($customerData['first_name'] . ' ' . $customerData['last_name']);
+                }
+
+                $user = $userModel::create($userData);
+
+                // Fire the registered event
+                event(new Registered($user));
+            }
+
+            // Log the user in
+            Auth::login($user);
+
+            // Get the plan
+            $plan = SubscriptionPlan::where('slug', $request->plan_slug)->firstOrFail();
+
+            // Create the subscription
+            $subscription = $this->subscriptionService->createSubscription(
+                $user,
+                $plan,
+                $request->payment_data ?? [],
+                $request->boolean('start_trial', false)
+            );
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Subscription created successfully',
+                    'subscription' => [
+                        'id' => $subscription->id,
+                        'status' => $subscription->status,
+                        'plan_name' => $subscription->plan->name,
+                    ],
+                    'user' => [
+                        'id' => $user->id,
+                        'email' => $user->email,
+                        'name' => $user->name ?? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')),
+                    ],
+                ], 201);
+            }
+
+            return redirect()
+                ->route('subscription.dashboard')
+                ->with('success', 'Welcome! Your subscription has been created successfully!');
+
+        } catch (\Exception $e) {
+            // If user was created but subscription failed, we should handle cleanup
+            // For now, we'll just return the error
+
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Failed to create subscription',
+                    'error' => $e->getMessage(),
+                ], 422);
+            }
+
+            return redirect()
+                ->back()
+                ->withErrors(['subscription' => $e->getMessage()])
+                ->withInput();
         }
     }
 
